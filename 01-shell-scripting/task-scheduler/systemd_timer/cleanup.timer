@@ -1,0 +1,11 @@
+[Unit]
+Description=Weekly Cleanup Timer
+Requires=cleanup.service
+
+[Timer]
+# Chạy mỗi Chủ nhật lúc 3:00 sáng
+OnCalendar=Sun *-*-* 03:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

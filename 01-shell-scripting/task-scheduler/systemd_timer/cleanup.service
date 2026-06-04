@@ -1,0 +1,14 @@
+[Unit]
+Description=Weekly Cleanup Service
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/scheduled_tasks.sh cleanup_temp
+ExecStart=/usr/local/bin/scheduled_tasks.sh cleanup_logs
+User=root
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

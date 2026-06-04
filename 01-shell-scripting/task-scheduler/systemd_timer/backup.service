@@ -1,0 +1,13 @@
+[Unit]
+Description=Daily Backup Service
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/scheduled_tasks.sh daily_backup
+User=root
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
