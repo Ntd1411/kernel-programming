@@ -112,6 +112,7 @@ WantedBy=timers.target
 Format: `DayOfWeek Year-Month-Day Hour:Minute:Second`
 
 Ví dụ:
+
 - `*-*-* 02:00:00` - Hàng ngày lúc 2:00 sáng
 - `Mon *-*-* 09:00:00` - Mỗi thứ Hai lúc 9:00 sáng
 - `*-*-01 00:00:00` - Ngày đầu tiên của mỗi tháng
@@ -130,7 +131,7 @@ Ví dụ:
 ## So Sánh với Cron
 
 | Tính năng | Cron | Systemd Timer |
-|-----------|------|---------------|
+| ----------- | ------ | --------------- |
 | Syntax | Khó nhớ | Dễ đọc |
 | Logging | Phân tán | Tập trung (journald) |
 | Dependencies | Không | Có |

@@ -4,7 +4,7 @@ Dự án bài tập lớn về lập trình hệ thống trên Ubuntu/Linux bao 
 
 ## Cấu Trúc Thư Mục
 
-```
+``` folder
 kernel-linux/
 ├── 01-shell-scripting/          # Lập trình Shell
 │   ├── file-management/         # Quản lý file

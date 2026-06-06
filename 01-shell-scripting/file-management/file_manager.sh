@@ -121,9 +121,15 @@ compress_files() {
     read -r output
     
     if [ -e "$source" ]; then
-        if tar -czf "$output" "$source"; then
+        # Lấy thư mục cha và tên folder
+        parent_dir=$(dirname "$source")
+        base_name=$(basename "$source")
+        
+        # Nén từ thư mục cha để tránh absolute path
+        if tar -czf "$output" -C "$parent_dir" "$base_name"; then
             log_message "Nén thành công: $source -> $output"
             echo "Nén thành công! File: $output"
+            echo "Khi giải nén sẽ tạo: $base_name/"
             ls -lh "$output"
         else
             log_message "Lỗi nén: $source"

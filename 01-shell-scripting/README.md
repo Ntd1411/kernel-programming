@@ -67,6 +67,7 @@ chmod +x script_name.sh
 ```
 
 Cung cấp menu tương tác với các chức năng:
+
 - Tìm kiếm file theo pattern
 - Sao chép/di chuyển file
 - Xóa file/thư mục
@@ -82,6 +83,7 @@ Cung cấp menu tương tác với các chức năng:
 ```
 
 Ví dụ:
+
 ```bash
 # Backup /home/user vào /backup, giữ 7 ngày
 ./file-management/backup.sh /home/user /backup 7
@@ -91,6 +93,7 @@ Ví dụ:
 ```
 
 Tính năng:
+
 - Tạo file nén .tar.gz với timestamp
 - Tự động xóa backup cũ theo số ngày retention
 - Ghi log chi tiết
@@ -105,6 +108,7 @@ Tính năng:
 Action: `list` (mặc định), `delete`, `move`
 
 Ví dụ:
+
 ```bash
 # Liệt kê file trùng lặp
 ./file-management/find_duplicates.sh /home/user/Documents
@@ -125,11 +129,13 @@ Sử dụng MD5 hash để phát hiện file giống hệt nhau.
 ```
 
 Options:
+
 - `-d, --days DAYS` - Xóa file cũ hơn DAYS ngày (mặc định: 30)
 - `-n, --dry-run` - Chỉ hiển thị, không xóa
 - `-v, --verbose` - Hiển thị chi tiết
 
 Ví dụ:
+
 ```bash
 # Xem file cũ hơn 7 ngày
 ./file-management/cleanup.sh -d 7 -n
@@ -147,12 +153,14 @@ Ví dụ:
 ```
 
 Options:
+
 - `-l, --list` - Liệt kê tất cả cron jobs
 - `-a, --add` - Thêm cron job mới
 - `-d, --delete <id>` - Xóa cron job theo ID
 - `-e, --edit` - Chỉnh sửa crontab
 
 Ví dụ:
+
 ```bash
 # Liệt kê cron jobs
 ./task-scheduler/cron_manager.sh --list
@@ -173,12 +181,14 @@ Cron format: `phút giờ ngày tháng ngày_trong_tuần lệnh`
 ```
 
 Các tác vụ có sẵn:
+
 - `daily_backup` - Backup hàng ngày
 - `cleanup_temp_files` - Dọn dẹp file tạm
 - `system_update` - Cập nhật hệ thống
 - `log_rotation` - Rotate log files
 
 Ví dụ:
+
 ```bash
 # Chạy backup hàng ngày
 ./task-scheduler/scheduled_tasks.sh daily_backup
@@ -192,6 +202,7 @@ Ví dụ:
 Xem hướng dẫn chi tiết trong `task-scheduler/systemd_timer/README.md`
 
 Cài đặt timer:
+
 ```bash
 cd task-scheduler/systemd_timer
 sudo cp *.service *.timer /etc/systemd/system/
@@ -201,6 +212,7 @@ sudo systemctl start backup.timer
 ```
 
 Kiểm tra timer:
+
 ```bash
 systemctl list-timers
 systemctl status backup.timer
@@ -216,12 +228,14 @@ journalctl -u backup.service
 ```
 
 Tính năng:
+
 - Hiển thị thời gian hiện tại (local, UTC, timestamp)
 - Xem uptime hệ thống
 - Hiển thị múi giờ thế giới
 - Theo dõi thời gian boot
 
 Ví dụ:
+
 ```bash
 # Hiển thị thông tin thời gian
 ./time-management/time_tracker.sh
@@ -234,11 +248,13 @@ Ví dụ:
 ```
 
 Commands:
+
 - `start [name]` - Bắt đầu đồng hồ
 - `stop` - Dừng và hiển thị thời gian
 - `status` - Xem trạng thái hiện tại
 
 Ví dụ:
+
 ```bash
 # Bắt đầu bấm giờ
 ./time-management/stopwatch.sh start "coding-session"
@@ -259,6 +275,7 @@ Ví dụ:
 ```
 
 Commands:
+
 - `install <package>` - Cài đặt package
 - `remove <package>` - Gỡ bỏ package
 - `search <keyword>` - Tìm kiếm package
@@ -267,6 +284,7 @@ Commands:
 - `list` - Liệt kê package đã cài
 
 Ví dụ:
+
 ```bash
 # Cài đặt package
 sudo ./package-management/package_manager.sh install vim
@@ -288,6 +306,7 @@ Hỗ trợ nhiều package manager: apt, dnf, yum, pacman, zypper
 ```
 
 Ví dụ:
+
 ```bash
 # Kiểm tra dependencies của vim
 ./package-management/dependency_checker.sh vim
@@ -297,6 +316,7 @@ Ví dụ:
 ```
 
 Hiển thị:
+
 - Dependencies trực tiếp
 - Reverse dependencies (package phụ thuộc vào nó)
 
@@ -307,12 +327,14 @@ Hiển thị:
 ```
 
 Commands:
+
 - `list` - Liệt kê tất cả repository
 - `add <repo>` - Thêm repository mới
 - `remove <repo>` - Xóa repository
 - `update` - Cập nhật repository
 
 Ví dụ:
+
 ```bash
 # Liệt kê repositories
 ./package-management/repo_manager.sh list
