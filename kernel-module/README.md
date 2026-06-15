@@ -30,9 +30,11 @@ Character device driver:
 ### 3. Proc Interface (proc-interface/)
 
 Proc filesystem:
-- `proc_basic.c` - Proc entry cơ bản
-- `proc_seq.c` - Sequential file operations
-- `proc_rw.c` - Read/Write proc entry
+- `proc_basic.c` - Proc entry cơ bản (read-only)
+- `proc_seq.c` - Sequential file operations (danh sách CPU)
+- `proc_rw.c` - Read/Write proc entry (message buffer)
+- `test_proc.sh` - Script test tự động
+- `Makefile` - Build và test utilities
 
 ## Yêu Cầu
 

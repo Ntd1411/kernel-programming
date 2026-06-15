@@ -1,0 +1,30 @@
+# Kernel module build artifacts
+*.o
+*.ko
+*.mod
+*.mod.c
+*.symvers
+*.order
+*.markers
+.*.cmd
+.tmp_versions/
+modules.order
+Module.symvers
+
+# Compiled test programs
+test_chardev
+test_ioctl
+
+# Editor and IDE
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# OS specific
+.DS_Store
+Thumbs.db
