@@ -22,6 +22,7 @@ BACKUP_PATH="${BACKUP_DIR}/${BACKUP_NAME}"
 LOG_FILE="${BACKUP_DIR}/backup.log"
 
 log_message() {
+    mkdir -p "$(dirname "$LOG_FILE")"
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
 }
 

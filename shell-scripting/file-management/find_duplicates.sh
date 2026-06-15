@@ -52,20 +52,7 @@ echo "Phân tích kết quả..."
 duplicates_found=0
 total_wasted_space=0
 
-sort "$TEMP_FILE" | \
-awk -F'|' '{
-    key = $1 "|" $2
-    files[key] = files[key] ? files[key] "," $3 : $3
-    count[key]++
-    size[key] = $2
-}
-END {
-    for (k in files) {
-        if (count[k] > 1) {
-            print k "|" files[k]
-        }
-    }
-}' | while IFS='|' read -r hash size file_list; do
+while IFS='|' read -r hash size file_list; do
     duplicates_found=$((duplicates_found + 1))
     
     IFS=',' read -ra FILES <<< "$file_list"
@@ -114,7 +101,20 @@ END {
     done
     
     echo ""
-done
+done < <(sort "$TEMP_FILE" | \
+awk -F'|' '{
+    key = $1 "|" $2
+    files[key] = files[key] ? files[key] "," $3 : $3
+    count[key]++
+    size[key] = $2
+}
+END {
+    for (k in files) {
+        if (count[k] > 1) {
+            print k "|" files[k]
+        }
+    }
+}')
 
 if [ $duplicates_found -eq 0 ]; then
     echo "Không tìm thấy file trùng lặp!"
