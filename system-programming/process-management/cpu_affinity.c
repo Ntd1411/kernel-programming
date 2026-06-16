@@ -15,8 +15,10 @@
 #include <sched.h>
 #include <pthread.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <string.h>
 #include <errno.h>
+#include <time.h>
 
 void print_cpu_info() {
     int num_cpus = sysconf(_SC_NPROCESSORS_ONLN);
