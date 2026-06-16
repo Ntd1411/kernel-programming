@@ -15,9 +15,19 @@
 #include <unistd.h>
 #include <sys/resource.h>
 #include <sys/time.h>
+#include <sys/wait.h>
+#include <time.h>
 #include <sched.h>
 #include <errno.h>
 #include <string.h>
+
+#ifndef SCHED_BATCH
+#define SCHED_BATCH 3
+#endif
+
+#ifndef SCHED_IDLE
+#define SCHED_IDLE 5
+#endif
 
 void print_priority_info(pid_t pid) {
     int nice_value = getpriority(PRIO_PROCESS, pid);
