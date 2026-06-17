@@ -183,9 +183,13 @@ Cron format: `phút giờ ngày tháng ngày_trong_tuần lệnh`
 Các tác vụ có sẵn:
 
 - `daily_backup` - Backup hàng ngày
-- `cleanup_temp_files` - Dọn dẹp file tạm
+- `cleanup_temp` - Dọn dẹp file tạm
+- `cleanup_logs` - Dọn dẹp log files cũ
+- `check_disk` - Kiểm tra dung lượng đĩa
 - `system_update` - Cập nhật hệ thống
-- `log_rotation` - Rotate log files
+- `check_services` - Kiểm tra trạng thái dịch vụ
+- `rotate_logs` - Rotate log files
+- `all` - Chạy tất cả các task
 
 Ví dụ:
 
@@ -194,12 +198,23 @@ Ví dụ:
 ./task-scheduler/scheduled_tasks.sh daily_backup
 
 # Dọn dẹp file tạm
-./task-scheduler/scheduled_tasks.sh cleanup_temp_files
+./task-scheduler/scheduled_tasks.sh cleanup_temp
+
+# Chạy tất cả các task
+./task-scheduler/scheduled_tasks.sh all
 ```
 
 #### Systemd Timer
 
 Xem hướng dẫn chi tiết trong `task-scheduler/systemd_timer/README.md`
+
+Chuẩn bị:
+
+```bash
+# Copy script vào /usr/local/bin (hoặc sửa ExecStart trong service file)
+sudo cp task-scheduler/scheduled_tasks.sh /usr/local/bin/
+sudo chmod +x /usr/local/bin/scheduled_tasks.sh
+```
 
 Cài đặt timer:
 
@@ -209,6 +224,8 @@ sudo cp *.service *.timer /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable backup.timer
 sudo systemctl start backup.timer
+sudo systemctl enable cleanup.timer
+sudo systemctl start cleanup.timer
 ```
 
 Kiểm tra timer:
@@ -391,3 +408,105 @@ sudo ./package-management/repo_manager.sh update
 - Log tất cả hoạt động quan trọng
 - Test script trên môi trường an toàn trước khi deploy
 - Không hardcode password trong script
+
+## Test và Demo
+
+### Quick Test - Kiểm tra nhanh tất cả scripts
+
+```bash
+# Kiểm tra syntax và khả năng chạy của tất cả scripts
+./quick_test.sh
+```
+
+Script này sẽ:
+- Kiểm tra file tồn tại
+- Test syntax với `bash -n`
+- Chạy thử với help/usage
+- Hiển thị kết quả pass/fail
+
+### Demo - Xem các tính năng chính
+
+```bash
+# Chạy demo tương tác để xem các tính năng
+./demo.sh
+```
+
+Demo bao gồm:
+- File backup và duplicate detection
+- Time management và timezone conversion
+- Package search và dependency check
+- Scheduled tasks execution
+- Tự động cleanup sau khi demo
+
+### Test Chi Tiết
+
+Xem hướng dẫn test đầy đủ trong các file:
+
+- **TEST_GUIDE.md** - Hướng dẫn test chi tiết từng module
+  - Test cases cho từng script
+  - Kiểm tra logs và output
+  - Cleanup sau test
+  
+- **SETUP.md** - Hướng dẫn setup môi trường test
+  - Cài đặt dependencies
+  - Cấu hình môi trường
+  - Troubleshooting thường gặp
+  - Setup trên VM/Docker/WSL
+
+### Workflow Test Khuyến Nghị
+
+```bash
+# 1. Setup môi trường (lần đầu)
+# Xem SETUP.md để cài đặt dependencies
+
+# 2. Cấp quyền thực thi
+find . -name "*.sh" -type f -exec chmod +x {} \;
+
+# 3. Quick test
+./quick_test.sh
+
+# 4. Xem demo
+./demo.sh
+
+# 5. Test chi tiết theo TEST_GUIDE.md
+# Test từng module một
+
+# 6. Test trên production-like environment
+# Sử dụng VM hoặc container
+```
+
+## Tài Liệu Tham Khảo
+
+- **README.md** (file này) - Tổng quan và hướng dẫn sử dụng
+- **TEST_GUIDE.md** - Hướng dẫn test chi tiết
+- **SETUP.md** - Setup môi trường test
+- **task-scheduler/systemd_timer/README.md** - Hướng dẫn systemd timer
+- **task-scheduler/systemd_timer/CHEATSHEET.md** - Systemd timer quick reference (nếu có)
+
+## Troubleshooting
+
+### Lỗi thường gặp
+
+**Permission denied:**
+```bash
+chmod +x script.sh
+# Hoặc
+bash script.sh
+```
+
+**Command not found:**
+```bash
+# Kiểm tra dependencies
+./quick_test.sh
+```
+
+**Log file permission denied:**
+```bash
+# Tạo log directory trong home
+mkdir -p ~/kernel-programming/logs
+# Hoặc cấp quyền /var/log
+sudo mkdir -p /var/log/scheduled_tasks
+sudo chown $USER:$USER /var/log/scheduled_tasks
+```
+
+Xem thêm troubleshooting trong **SETUP.md**
