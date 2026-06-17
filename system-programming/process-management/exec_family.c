@@ -23,6 +23,7 @@ void example1_execl() {
         exit(EXIT_FAILURE);
     } else if (pid == 0) {
         // Con: thực thi ls
+        printf("Thực thi: execl(\"/bin/ls\", \"ls\", \"-l\", \"/tmp\", NULL)\n\n");
         execl("/bin/ls", "ls", "-l", "/tmp", NULL);
         
         // Chỉ chạy đến đây nếu execl thất bại
@@ -46,6 +47,7 @@ void example2_execlp() {
         exit(EXIT_FAILURE);
     } else if (pid == 0) {
         // Con: thực thi ls với PATH
+        printf("Thực thi: execlp(\"ls\", \"ls\", \"-lh\", NULL)\n\n");
         execlp("ls", "ls", "-lh", NULL);
         
         perror("execlp");
@@ -75,6 +77,7 @@ void example3_execv() {
             NULL
         };
         
+        printf("Thực thi: execv(\"/bin/ls\", [\"ls\", \"-l\", \"-a\", \"/home\", NULL])\n\n");
         execv("/bin/ls", args);
         
         perror("execv");
@@ -103,6 +106,7 @@ void example4_execvp() {
             NULL
         };
         
+        printf("Thực thi: execvp(\"echo\", [\"echo\", \"Hello\", \"from\", \"execvp!\", NULL])\n\n");
         execvp("echo", args);
         
         perror("execvp");
@@ -130,6 +134,8 @@ void example5_execle() {
             NULL
         };
         
+        printf("Thực thi: execle(\"/bin/sh\", \"sh\", \"-c\", \"echo $MY_VAR\", NULL, envp)\n");
+        printf("Environment: MY_VAR=Hello, PATH=/bin:/usr/bin\n\n");
         execle("/bin/sh", "sh", "-c", "echo $MY_VAR", NULL, envp);
         
         perror("execle");
@@ -150,6 +156,7 @@ void example6_exec_shell_script() {
         exit(EXIT_FAILURE);
     } else if (pid == 0) {
         // Thực thi shell command
+        printf("Thực thi: execlp(\"sh\", \"sh\", \"-c\", \"echo 'Current user:' $(whoami) && echo 'PWD:' $(pwd)\", NULL)\n\n");
         execlp("sh", "sh", "-c", 
                "echo 'Current user:' $(whoami) && echo 'PWD:' $(pwd)",
                NULL);
@@ -172,6 +179,7 @@ void example7_exec_with_input() {
         exit(EXIT_FAILURE);
     } else if (pid == 0) {
         // Thực thi wc để đếm số dòng
+        printf("Thực thi: execlp(\"wc\", \"wc\", \"-l\", \"/etc/passwd\", NULL)\n\n");
         execlp("wc", "wc", "-l", "/etc/passwd", NULL);
         
         perror("execlp");
