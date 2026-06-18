@@ -1,0 +1,24 @@
+# Documentation folder - not pushed to GitHub
+shell-scripting/doc/
+
+# System files
+.DS_Store
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Logs
+*.log
+logs/
+
+# Build artifacts
+*.o
+*.a
+*.so
+*.out
+
+# Temp files
+*.tmp
+*.bak
