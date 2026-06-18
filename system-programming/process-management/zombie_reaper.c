@@ -30,13 +30,28 @@ void example1_create_zombie() {
         // Cha không gọi wait() - tạo zombie
         printf("[CHA] Con PID=%d đã tạo\n", pid);
         printf("[CHA] Cha không gọi wait() - con sẽ thành zombie\n");
-        printf("[CHA] Kiểm tra: ps aux | grep %d\n", pid);
+        printf("[CHA] Kiểm tra zombie trong 5 giây...\n\n");
         
-        sleep(5);
+        sleep(2);
         
-        printf("[CHA] Giờ gọi wait() để reap zombie\n");
+        // Chạy lệnh ps để kiểm tra zombie
+        char cmd[256];
+        snprintf(cmd, sizeof(cmd), "ps aux | grep %d | grep -v grep", pid);
+        printf("[CHA] Chạy lệnh: %s\n", cmd);
+        system(cmd);
+        
+        printf("\n[CHA] Chú ý: Cột STAT có chữ 'Z' = zombie\n");
+        
+        sleep(3);
+        
+        printf("\n[CHA] Giờ gọi wait() để reap zombie\n");
         wait(NULL);
         printf("[CHA] Đã reap zombie process\n");
+        
+        sleep(1);
+        printf("\n[CHA] Kiểm tra lại sau khi reap:\n");
+        system(cmd);
+        printf("[CHA] Process không còn tồn tại (đã reap)\n");
     }
 }
 
