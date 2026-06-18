@@ -5,7 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_DIR="${SCRIPT_DIR}/../../logs"
 LOG_FILE="${LOG_DIR}/stopwatch.log"
-STOPWATCH_FILE="/tmp/stopwatch_$$"
+STOPWATCH_FILE="/tmp/stopwatch_${USER}"
 
 mkdir -p "$LOG_DIR"
 
