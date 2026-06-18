@@ -16,11 +16,19 @@ Lập trình C/C++ tương tác trực tiếp với Linux kernel thông qua syst
 
 Quản lý tiến trình:
 
-- `fork_example.c` - Tạo tiến trình con
-- `exec_family.c` - Thực thi chương trình khác
-- `signal_handler.c` - Xử lý signals
-- `zombie_reaper.c` - Xử lý zombie process
-- `daemon.c` - Tạo daemon process
+Cơ bản (Bắt đầu từ đây):
+fork_example - Fork cơ bản
+exec_family - Exec functions
+signal_handler - Signal handling
+zombie_reaper - Zombie processes
+Trung bình:
+process_groups - Process groups và sessions
+process_info - Đọc thông tin process
+Nâng cao:
+process_priority - Nice value và scheduling (cần sudo cho real-time)
+cpu_affinity - CPU affinity (cần multi-core)
+ipc_basics - IPC đầy đủ (phức tạp nhất)
+daemon - Daemon process
 
 ### 2. File I/O (file-io/)
 

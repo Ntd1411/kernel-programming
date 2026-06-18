@@ -60,17 +60,25 @@ void sigalrm_handler(int signum) {
 void example1_basic_signal() {
     printf("\n=== Ví dụ 1: Signal handler cơ bản ===\n");
     printf("PID: %d\n", getpid());
-    printf("Nhấn Ctrl+C để gửi SIGINT\n");
-    printf("Nhấn 3 lần để thoát chương trình\n\n");
+    printf("Nhấn Ctrl+C để gửi SIGINT (tối đa 3 lần)\n\n");
     
     // Đăng ký signal handler
     signal(SIGINT, sigint_handler);
     signal(SIGTERM, sigterm_handler);
     
-    // Vòng lặp chính
-    while (1) {
-        printf("Đang chạy... (signal_count=%d)\n", signal_count);
-        sleep(2);
+    // Reset counter
+    signal_count = 0;
+    
+    // Vòng lặp với timeout
+    int timeout = 10;
+    while (timeout > 0 && signal_count < 3) {
+        printf("Đang chạy... (signal_count=%d, còn %d giây)\n", signal_count, timeout);
+        sleep(1);
+        timeout--;
+    }
+    
+    if (signal_count == 0) {
+        printf("Hết thời gian, chuyển ví dụ tiếp theo\n");
     }
 }
 
@@ -98,16 +106,11 @@ void example2_sigaction() {
     }
     
     printf("Đã đăng ký handler cho SIGUSR1 và SIGUSR2\n");
-    printf("Thử gửi signal:\n");
-    printf("  kill -SIGUSR1 %d\n", getpid());
-    printf("  kill -SIGUSR2 %d\n", getpid());
-    printf("\nNhấn Ctrl+C để dừng\n\n");
+    printf("Có thể test bằng: kill -SIGUSR1 %d hoặc kill -SIGUSR2 %d\n", getpid(), getpid());
+    printf("Đợi 5 giây...\n\n");
     
-    signal(SIGINT, sigint_handler);
-    
-    while (signal_count < 3) {
-        sleep(1);
-    }
+    sleep(5);
+    printf("Hoàn thành ví dụ 2\n");
 }
 
 void example3_alarm() {
@@ -154,8 +157,7 @@ void example4_signal_blocking() {
         exit(EXIT_FAILURE);
     }
     
-    printf("Giờ Ctrl+C sẽ hoạt động bình thường\n");
-    sleep(3);
+    printf("Đã unblock SIGINT\n");
 }
 
 void example5_send_signal() {
@@ -195,33 +197,33 @@ void example5_send_signal() {
     }
 }
 
-int main(int argc, char *argv[]) {
+int main() {
     printf("=== SIGNAL HANDLER EXAMPLES ===\n");
+    printf("PID: %d\n", getpid());
     
-    if (argc > 1) {
-        if (strcmp(argv[1], "1") == 0) {
-            example1_basic_signal();
-        } else if (strcmp(argv[1], "2") == 0) {
-            example2_sigaction();
-        } else if (strcmp(argv[1], "3") == 0) {
-            example3_alarm();
-        } else if (strcmp(argv[1], "4") == 0) {
-            example4_signal_blocking();
-        } else if (strcmp(argv[1], "5") == 0) {
-            example5_send_signal();
-        } else {
-            printf("Sử dụng: %s [1|2|3|4|5]\n", argv[0]);
-            return 1;
-        }
-    } else {
-        printf("\nChọn ví dụ:\n");
-        printf("  1 - Basic signal handler\n");
-        printf("  2 - sigaction()\n");
-        printf("  3 - alarm()\n");
-        printf("  4 - Block/unblock signals\n");
-        printf("  5 - Send signal giữa các tiến trình\n");
-        printf("\nSử dụng: %s [1|2|3|4|5]\n", argv[0]);
-    }
+    example1_basic_signal();
+    sleep(1);
+    
+    example2_sigaction();
+    sleep(1);
+    
+    example3_alarm();
+    sleep(1);
+    
+    example4_signal_blocking();
+    sleep(1);
+    
+    example5_send_signal();
+    
+    printf("\n=== HOÀN THÀNH ===\n");
+    printf("\nTóm tắt signal handling:\n");
+    printf("  signal()      - đăng ký signal handler đơn giản\n");
+    printf("  sigaction()   - đăng ký handler nâng cao (khuyến nghị)\n");
+    printf("  kill()        - gửi signal cho tiến trình khác\n");
+    printf("  alarm()       - đặt timer gửi SIGALRM\n");
+    printf("  pause()       - đợi signal\n");
+    printf("  sigprocmask() - block/unblock signals\n");
+    printf("  Lưu ý: Chỉ dùng async-signal-safe functions trong handler\n");
     
     return 0;
 }

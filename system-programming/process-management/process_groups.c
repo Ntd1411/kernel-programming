@@ -291,49 +291,34 @@ void print_menu() {
 }
 
 int main() {
-    printf("PROCESS GROUPS VÀ SESSIONS DEMO\n");
-    printf("================================\n");
+    printf("=== PROCESS GROUPS AND SESSIONS EXAMPLES ===\n");
+    printf("PID: %d\n", getpid());
     
-    int choice;
+    example1_basic_ids();
+    sleep(1);
     
-    while (1) {
-        print_menu();
-        
-        if (scanf("%d", &choice) != 1) {
-            while (getchar() != '\n');
-            continue;
-        }
-        
-        switch (choice) {
-            case 1:
-                example1_basic_ids();
-                break;
-            case 2:
-                example2_create_process_group();
-                break;
-            case 3:
-                example3_process_group_family();
-                break;
-            case 4:
-                example4_send_signal_to_group();
-                break;
-            case 5:
-                example5_session_leader();
-                break;
-            case 6:
-                example6_job_control_simulation();
-                break;
-            case 0:
-                printf("\nTạm biệt!\n");
-                exit(0);
-            default:
-                printf("\nLựa chọn không hợp lệ!\n");
-        }
-        
-        printf("\nNhấn Enter để tiếp tục...");
-        while (getchar() != '\n');
-        getchar();
-    }
+    example2_create_process_group();
+    sleep(1);
+    
+    example3_process_group_family();
+    sleep(1);
+    
+    example4_send_signal_to_group();
+    sleep(1);
+    
+    example5_session_leader();
+    sleep(1);
+    
+    example6_job_control_simulation();
+    
+    printf("\n=== HOÀN THÀNH ===\n");
+    printf("\nTóm tắt process groups & sessions:\n");
+    printf("  getpgrp()  - lấy PGID của tiến trình hiện tại\n");
+    printf("  getpgid()  - lấy PGID của tiến trình khác\n");
+    printf("  setpgid()  - đặt process group mới\n");
+    printf("  getsid()   - lấy SID của tiến trình\n");
+    printf("  setsid()   - tạo session mới (trở thành leader)\n");
+    printf("  kill(-pgid, sig) - gửi signal đến toàn bộ group\n");
     
     return 0;
 }

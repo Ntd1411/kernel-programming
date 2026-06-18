@@ -232,41 +232,31 @@ void example5_double_fork() {
     }
 }
 
-int main(int argc, char *argv[]) {
+int main() {
     printf("=== ZOMBIE REAPER EXAMPLES ===\n");
-    printf("PID của chương trình: %d\n", getpid());
+    printf("PID: %d\n", getpid());
     
-    if (argc > 1) {
-        int example = atoi(argv[1]);
-        
-        switch (example) {
-            case 1:
-                example1_create_zombie();
-                break;
-            case 2:
-                example2_sigchld_handler();
-                break;
-            case 3:
-                example3_waitpid_wnohang();
-                break;
-            case 4:
-                example4_wait_specific_child();
-                break;
-            case 5:
-                example5_double_fork();
-                break;
-            default:
-                printf("Ví dụ không hợp lệ\n");
-        }
-    } else {
-        printf("\nChọn ví dụ:\n");
-        printf("  1 - Tạo và reap zombie\n");
-        printf("  2 - SIGCHLD auto-reap\n");
-        printf("  3 - waitpid() với WNOHANG\n");
-        printf("  4 - waitpid() cho tiến trình cụ thể\n");
-        printf("  5 - Double fork\n");
-        printf("\nSử dụng: %s [1-5]\n", argv[0]);
-    }
+    example1_create_zombie();
+    sleep(1);
+    
+    example2_sigchld_handler();
+    sleep(1);
+    
+    example3_waitpid_wnohang();
+    sleep(1);
+    
+    example4_wait_specific_child();
+    sleep(1);
+    
+    example5_double_fork();
+    
+    printf("\n=== HOÀN THÀNH ===\n");
+    printf("\nTóm tắt zombie reaping:\n");
+    printf("  wait()       - đợi bất kỳ con nào kết thúc\n");
+    printf("  waitpid()    - đợi con cụ thể, có WNOHANG\n");
+    printf("  SIGCHLD      - signal khi con kết thúc\n");
+    printf("  SA_NOCLDWAIT - tự động reap, không tạo zombie\n");
+    printf("  double fork  - tránh zombie cho daemon process\n");
     
     return 0;
 }

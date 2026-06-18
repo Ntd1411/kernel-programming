@@ -272,46 +272,31 @@ void print_menu() {
 }
 
 int main() {
-    printf("CPU AFFINITY DEMO\n");
-    printf("=================\n");
+    printf("=== CPU AFFINITY EXAMPLES ===\n");
+    printf("PID: %d\n", getpid());
     
-    int choice;
+    example1_get_affinity();
+    sleep(1);
     
-    while (1) {
-        print_menu();
-        
-        if (scanf("%d", &choice) != 1) {
-            while (getchar() != '\n');
-            continue;
-        }
-        
-        switch (choice) {
-            case 1:
-                example1_get_affinity();
-                break;
-            case 2:
-                example2_set_affinity();
-                break;
-            case 3:
-                example3_fork_with_affinity();
-                break;
-            case 4:
-                example4_pthread_affinity();
-                break;
-            case 5:
-                example5_inherit_affinity();
-                break;
-            case 0:
-                printf("\nTạm biệt!\n");
-                exit(0);
-            default:
-                printf("\nLựa chọn không hợp lệ!\n");
-        }
-        
-        printf("\nNhấn Enter để tiếp tục...");
-        while (getchar() != '\n');
-        getchar();
-    }
+    example2_set_affinity();
+    sleep(1);
+    
+    example3_fork_with_affinity();
+    sleep(1);
+    
+    example4_pthread_affinity();
+    sleep(1);
+    
+    example5_inherit_affinity();
+    
+    printf("\n=== HOÀN THÀNH ===\n");
+    printf("\nTóm tắt CPU affinity:\n");
+    printf("  sched_getaffinity() - lấy CPU affinity hiện tại\n");
+    printf("  sched_setaffinity() - đặt CPU affinity\n");
+    printf("  sched_getcpu()      - lấy CPU đang chạy\n");
+    printf("  pthread_attr_setaffinity_np() - đặt affinity cho thread\n");
+    printf("  CPU_ZERO, CPU_SET   - macro thao tác cpu_set_t\n");
+    printf("  Affinity được kế thừa từ cha sang con\n");
     
     return 0;
 }

@@ -155,7 +155,7 @@ void example4_shared_data() {
 
 int main() {
     printf("=== FORK EXAMPLES ===\n");
-    printf("PID của chương trình chính: %d\n", getpid());
+    printf("PID: %d\n", getpid());
     
     example1_basic_fork();
     sleep(1);
@@ -169,5 +169,13 @@ int main() {
     example4_shared_data();
     
     printf("\n=== HOÀN THÀNH ===\n");
+    printf("\nTóm tắt fork():\n");
+    printf("  fork()       - tạo tiến trình con giống hệt cha\n");
+    printf("  getpid()     - lấy PID của tiến trình hiện tại\n");
+    printf("  getppid()    - lấy PID của tiến trình cha\n");
+    printf("  wait()       - đợi tiến trình con kết thúc\n");
+    printf("  exit()       - kết thúc tiến trình con\n");
+    printf("  Lưu ý: Con và cha có bộ nhớ riêng biệt\n");
+    
     return 0;
 }
