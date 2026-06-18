@@ -195,17 +195,6 @@ int show_stat(const char *filename) {
     printf((file_stat.st_mode & S_IXOTH) ? "x" : "-");
     printf("\n");
     
-    char *time_str;
-    
-    time_str = ctime(&file_stat.st_atime);
-    printf("Last access:    %s", time_str != NULL ? time_str : "N/A\n");
-    
-    time_str = ctime(&file_stat.st_mtime);
-    printf("Last modified:  %s", time_str != NULL ? time_str : "N/A\n");
-    
-    time_str = ctime(&file_stat.st_ctime);
-    printf("Last status:    %s", time_str != NULL ? time_str : "N/A\n");
-    
     return 0;
 }
 
