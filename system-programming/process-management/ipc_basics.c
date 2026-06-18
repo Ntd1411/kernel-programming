@@ -699,62 +699,44 @@ void print_menu() {
 }
 
 int main() {
-    int choice;
+    printf("=== IPC (INTER-PROCESS COMMUNICATION) EXAMPLES ===\n");
+    printf("PID: %d\n", getpid());
     
-    printf("\n");
-    print_separator();
-    printf("  IPC (INTER-PROCESS COMMUNICATION) BASICS\n");
-    print_separator();
-    printf("\nChương trình demo các phương thức IPC cơ bản trong Linux\n");
+    example1_unnamed_pipe();
+    sleep(1);
     
-    while (1) {
-        print_menu();
-        
-        if (scanf("%d", &choice) != 1) {
-            while (getchar() != '\n');
-            printf("Lựa chọn không hợp lệ!\n");
-            continue;
-        }
-        
-        switch (choice) {
-            case 1:
-                example1_unnamed_pipe();
-                break;
-            case 2:
-                example2_pipe_bidirectional();
-                break;
-            case 3:
-                example3_named_pipe_demo();
-                break;
-            case 4:
-                example4_message_queue();
-                break;
-            case 5:
-                example5_message_priority();
-                break;
-            case 6:
-                example6_shared_memory();
-                break;
-            case 7:
-                example7_shared_memory_posix();
-                break;
-            case 8:
-                example8_system_v_semaphore();
-                break;
-            case 9:
-                example9_posix_semaphore();
-                break;
-            case 0:
-                printf("\nTạm biệt!\n");
-                exit(0);
-            default:
-                printf("\nLựa chọn không hợp lệ!\n");
-        }
-        
-        printf("\nNhấn Enter để tiếp tục...");
-        while (getchar() != '\n');
-        getchar();
-    }
+    example2_pipe_bidirectional();
+    sleep(1);
+    
+    example3_named_pipe_demo();
+    sleep(1);
+    
+    example4_message_queue();
+    sleep(1);
+    
+    example5_message_priority();
+    sleep(1);
+    
+    example6_shared_memory();
+    sleep(1);
+    
+    example7_shared_memory_posix();
+    sleep(1);
+    
+    example8_system_v_semaphore();
+    sleep(1);
+    
+    example9_posix_semaphore();
+    
+    printf("\n=== HOÀN THÀNH ===\n");
+    printf("\nTóm tắt IPC methods:\n");
+    printf("  pipe()        - unnamed pipe cho cha-con\n");
+    printf("  mkfifo()      - named pipe (FIFO)\n");
+    printf("  msgget()      - System V message queue\n");
+    printf("  shmget()      - System V shared memory\n");
+    printf("  shm_open()    - POSIX shared memory\n");
+    printf("  semget()      - System V semaphore\n");
+    printf("  sem_open()    - POSIX named semaphore\n");
     
     return 0;
 }

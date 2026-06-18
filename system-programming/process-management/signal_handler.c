@@ -67,8 +67,11 @@ void example1_basic_signal() {
     signal(SIGINT, sigint_handler);
     signal(SIGTERM, sigterm_handler);
     
+    // Reset counter
+    signal_count = 0;
+    
     // Vòng lặp chính
-    while (1) {
+    while (signal_count < 3) {
         printf("Đang chạy... (signal_count=%d)\n", signal_count);
         sleep(2);
     }
@@ -104,6 +107,7 @@ void example2_sigaction() {
     printf("\nNhấn Ctrl+C để dừng\n\n");
     
     signal(SIGINT, sigint_handler);
+    signal_count = 0;
     
     while (signal_count < 3) {
         sleep(1);
@@ -195,32 +199,58 @@ void example5_send_signal() {
     }
 }
 
-int main(int argc, char *argv[]) {
+void print_menu() {
+    printf("\n=== MENU: Signal Handling ===\n");
+    printf("1. Basic signal handler (Ctrl+C)\n");
+    printf("2. sigaction()\n");
+    printf("3. alarm()\n");
+    printf("4. Block/unblock signals\n");
+    printf("5. Send signal giữa tiến trình\n");
+    printf("0. Thoát\n");
+    printf("Chọn: ");
+}
+
+int main() {
     printf("=== SIGNAL HANDLER EXAMPLES ===\n");
+    printf("PID: %d\n", getpid());
     
-    if (argc > 1) {
-        if (strcmp(argv[1], "1") == 0) {
-            example1_basic_signal();
-        } else if (strcmp(argv[1], "2") == 0) {
-            example2_sigaction();
-        } else if (strcmp(argv[1], "3") == 0) {
-            example3_alarm();
-        } else if (strcmp(argv[1], "4") == 0) {
-            example4_signal_blocking();
-        } else if (strcmp(argv[1], "5") == 0) {
-            example5_send_signal();
-        } else {
-            printf("Sử dụng: %s [1|2|3|4|5]\n", argv[0]);
-            return 1;
+    int choice;
+    
+    while (1) {
+        print_menu();
+        
+        if (scanf("%d", &choice) != 1) {
+            while (getchar() != '\n');
+            printf("Lựa chọn không hợp lệ!\n");
+            continue;
         }
-    } else {
-        printf("\nChọn ví dụ:\n");
-        printf("  1 - Basic signal handler\n");
-        printf("  2 - sigaction()\n");
-        printf("  3 - alarm()\n");
-        printf("  4 - Block/unblock signals\n");
-        printf("  5 - Send signal giữa các tiến trình\n");
-        printf("\nSử dụng: %s [1|2|3|4|5]\n", argv[0]);
+        
+        switch (choice) {
+            case 1:
+                example1_basic_signal();
+                break;
+            case 2:
+                example2_sigaction();
+                break;
+            case 3:
+                example3_alarm();
+                break;
+            case 4:
+                example4_signal_blocking();
+                break;
+            case 5:
+                example5_send_signal();
+                break;
+            case 0:
+                printf("\nTạm biệt!\n");
+                exit(0);
+            default:
+                printf("\nLựa chọn không hợp lệ!\n");
+        }
+        
+        printf("\nNhấn Enter để tiếp tục...");
+        while (getchar() != '\n');
+        getchar();
     }
     
     return 0;

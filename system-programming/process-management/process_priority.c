@@ -220,46 +220,32 @@ void print_menu() {
 }
 
 int main() {
-    printf("PROCESS PRIORITY VÀ SCHEDULING DEMO\n");
-    printf("====================================\n");
+    printf("=== PROCESS PRIORITY AND SCHEDULING EXAMPLES ===\n");
+    printf("PID: %d\n", getpid());
     
-    int choice;
+    example1_nice_value();
+    sleep(1);
     
-    while (1) {
-        print_menu();
-        
-        if (scanf("%d", &choice) != 1) {
-            while (getchar() != '\n');
-            continue;
-        }
-        
-        switch (choice) {
-            case 1:
-                example1_nice_value();
-                break;
-            case 2:
-                example2_getpriority_range();
-                break;
-            case 3:
-                example3_priority_comparison();
-                break;
-            case 4:
-                example4_realtime_scheduling();
-                break;
-            case 5:
-                example5_scheduling_policies();
-                break;
-            case 0:
-                printf("\nTạm biệt!\n");
-                exit(0);
-            default:
-                printf("\nLựa chọn không hợp lệ!\n");
-        }
-        
-        printf("\nNhấn Enter để tiếp tục...");
-        while (getchar() != '\n');
-        getchar();
-    }
+    example2_getpriority_range();
+    sleep(1);
+    
+    example3_priority_comparison();
+    sleep(1);
+    
+    example4_realtime_scheduling();
+    sleep(1);
+    
+    example5_scheduling_policies();
+    
+    printf("\n=== HOÀN THÀNH ===\n");
+    printf("\nTóm tắt process priority:\n");
+    printf("  nice()           - thay đổi nice value (tương đối)\n");
+    printf("  setpriority()    - đặt nice value (tuyệt đối)\n");
+    printf("  getpriority()    - lấy nice value\n");
+    printf("  sched_setscheduler() - đặt scheduling policy\n");
+    printf("  sched_getscheduler() - lấy scheduling policy\n");
+    printf("  SCHED_OTHER      - scheduling mặc định\n");
+    printf("  SCHED_FIFO/RR    - real-time (cần sudo)\n");
     
     return 0;
 }

@@ -285,52 +285,37 @@ void print_menu() {
 }
 
 int main() {
-    printf("PROCESS INFORMATION DEMO\n");
-    printf("========================\n");
+    printf("=== PROCESS INFORMATION EXAMPLES ===\n");
+    printf("PID: %d\n", getpid());
     
-    int choice;
+    example1_proc_status();
+    sleep(1);
     
-    while (1) {
-        print_menu();
-        
-        if (scanf("%d", &choice) != 1) {
-            while (getchar() != '\n');
-            continue;
-        }
-        
-        switch (choice) {
-            case 1:
-                example1_proc_status();
-                break;
-            case 2:
-                example2_proc_stat();
-                break;
-            case 3:
-                example3_proc_cmdline();
-                break;
-            case 4:
-                example4_getrusage();
-                break;
-            case 5:
-                example5_measure_cpu_time();
-                break;
-            case 6:
-                example6_child_resource_usage();
-                break;
-            case 7:
-                example7_proc_environ();
-                break;
-            case 0:
-                printf("\nTạm biệt!\n");
-                exit(0);
-            default:
-                printf("\nLựa chọn không hợp lệ!\n");
-        }
-        
-        printf("\nNhấn Enter để tiếp tục...");
-        while (getchar() != '\n');
-        getchar();
-    }
+    example2_proc_stat();
+    sleep(1);
+    
+    example3_proc_cmdline();
+    sleep(1);
+    
+    example4_getrusage();
+    sleep(1);
+    
+    example5_measure_cpu_time();
+    sleep(1);
+    
+    example6_child_resource_usage();
+    sleep(1);
+    
+    example7_proc_environ();
+    
+    printf("\n=== HOÀN THÀNH ===\n");
+    printf("\nTóm tắt process information:\n");
+    printf("  /proc/[pid]/status  - thông tin chi tiết dạng text\n");
+    printf("  /proc/[pid]/stat    - thông tin dạng số, dễ parse\n");
+    printf("  /proc/[pid]/cmdline - command line arguments\n");
+    printf("  /proc/[pid]/environ - biến môi trường\n");
+    printf("  getrusage()         - thống kê tài nguyên\n");
+    printf("  times()             - CPU time usage\n");
     
     return 0;
 }

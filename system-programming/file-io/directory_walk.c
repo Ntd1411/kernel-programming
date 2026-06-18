@@ -4,7 +4,7 @@
  * Minh họa: opendir, readdir, closedir, stat
  * 
  * Biên dịch: gcc -o directory_walk directory_walk.c
- * Chạy: ./directory_walk <directory>
+ * Chạy: ./directory_walk
  */
 
 #include <stdio.h>
@@ -18,6 +18,20 @@
 #include <grp.h>
 #include <time.h>
 #include <errno.h>
+
+#define MAX_PATH 512
+
+void print_menu(void) {
+    printf("\n=== MENU DIRECTORY WALK ===\n");
+    printf("1. Liệt kê đơn giản\n");
+    printf("2. Liệt kê chi tiết (ls -l)\n");
+    printf("3. Thống kê thư mục\n");
+    printf("4. Hiển thị dạng tree\n");
+    printf("5. Tìm file theo tên\n");
+    printf("6. Tìm file lớn\n");
+    printf("0. Thoát\n");
+    printf("Chọn: ");
+}
 
 void print_permissions(mode_t mode) {
     printf((S_ISDIR(mode)) ? "d" : "-");
@@ -263,60 +277,91 @@ void find_large_files(const char *path, off_t min_size, int depth) {
     closedir(dir);
 }
 
-void print_usage(const char *prog) {
-    printf("Sử dụng:\n");
-    printf("  %s list <dir>           - Liệt kê đơn giản\n", prog);
-    printf("  %s detail <dir>         - Liệt kê chi tiết\n", prog);
-    printf("  %s count <dir>          - Thống kê\n", prog);
-    printf("  %s tree <dir>           - Hiển thị dạng tree\n", prog);
-    printf("  %s find <dir> <pattern> - Tìm file theo tên\n", prog);
-    printf("  %s large <dir> <size>   - Tìm file lớn hơn size (bytes)\n", prog);
-}
+int main(void) {
+    int choice;
+    char dir_path[MAX_PATH];
+    char pattern[256];
+    off_t min_size;
+    
+    printf("=== DIRECTORY WALK DEMO ===\n");
+    printf("PID: %d\n", getpid());
+    
+    while (1) {
+        print_menu();
+        
+        if (scanf("%d", &choice) != 1) {
+            while (getchar() != '\n');
+            printf("Lỗi: Vui lòng nhập số!\n");
+            continue;
+        }
+        while (getchar() != '\n');
+        
+        if (choice == 0) {
+            printf("\nThoát chương trình.\n");
+            break;
+        }
+        
+        switch (choice) {
+            case 1:
+                printf("Nhập đường dẫn thư mục: ");
+                if (fgets(dir_path, sizeof(dir_path), stdin) == NULL) break;
+                dir_path[strcspn(dir_path, "\n")] = 0;
+                list_directory_simple(dir_path);
+                break;
+                
+            case 2:
+                printf("Nhập đường dẫn thư mục: ");
+                if (fgets(dir_path, sizeof(dir_path), stdin) == NULL) break;
+                dir_path[strcspn(dir_path, "\n")] = 0;
+                list_directory_detailed(dir_path);
+                break;
+                
+            case 3:
+                printf("Nhập đường dẫn thư mục: ");
+                if (fgets(dir_path, sizeof(dir_path), stdin) == NULL) break;
+                dir_path[strcspn(dir_path, "\n")] = 0;
+                count_directory(dir_path);
+                break;
+                
+            case 4:
+                printf("Nhập đường dẫn thư mục: ");
+                if (fgets(dir_path, sizeof(dir_path), stdin) == NULL) break;
+                dir_path[strcspn(dir_path, "\n")] = 0;
+                printf("\n=== Directory tree: %s ===\n", dir_path);
+                walk_directory_recursive(dir_path, 0);
+                break;
 
-int main(int argc, char *argv[]) {
-    if (argc < 3) {
-        print_usage(argv[0]);
-        return 1;
-    }
-    
-    const char *cmd = argv[1];
-    const char *path = argv[2];
-    
-    if (strcmp(cmd, "list") == 0) {
-        list_directory_simple(path);
-    }
-    else if (strcmp(cmd, "detail") == 0) {
-        list_directory_detailed(path);
-    }
-    else if (strcmp(cmd, "count") == 0) {
-        count_directory(path);
-    }
-    else if (strcmp(cmd, "tree") == 0) {
-        printf("\n=== Directory tree: %s ===\n", path);
-        walk_directory_recursive(path, 0);
-    }
-    else if (strcmp(cmd, "find") == 0) {
-        if (argc != 4) {
-            printf("Sử dụng: %s find <dir> <pattern>\n", argv[0]);
-            return 1;
+            case 5:
+                printf("Nhập mẫu tên file cần tìm: ");
+                if (fgets(pattern, sizeof(pattern), stdin) == NULL) break;
+                pattern[strcspn(pattern, "\n")] = 0;
+                printf("Nhập đường dẫn thư mục: ");
+                if (fgets(dir_path, sizeof(dir_path), stdin) == NULL) break;
+                dir_path[strcspn(dir_path, "\n")] = 0;
+                printf("\n=== Tìm file theo tên: %s ===\n", pattern);
+                find_by_name(dir_path, pattern, 0);
+                break;
+
+            case 6:
+                printf("Nhập kích thước tối thiểu (bytes): ");
+                if (scanf("%ld", &min_size) != 1) {
+                    while (getchar() != '\n');
+                    printf("Lỗi: Vui lòng nhập số!\n");
+                    break;
+                }
+                while (getchar() != '\n');
+                printf("Nhập đường dẫn thư mục: ");
+                if (fgets(dir_path, sizeof(dir_path), stdin) == NULL) break;
+                dir_path[strcspn(dir_path, "\n")] = 0;
+                printf("\n=== File lớn hơn %ld bytes ===\n", min_size);
+                find_large_files(dir_path, min_size, 0);
+                break;
+
+            default:
+                printf("Lựa chọn không hợp lệ. Vui lòng chọn lại.\n");
+                break;
         }
-        printf("\n=== Tìm kiếm '%s' trong %s ===\n", argv[3], path);
-        find_by_name(path, argv[3], 0);
     }
-    else if (strcmp(cmd, "large") == 0) {
-        if (argc != 4) {
-            printf("Sử dụng: %s large <dir> <size>\n", argv[0]);
-            return 1;
-        }
-        off_t min_size = atoll(argv[3]);
-        printf("\n=== File lớn hơn %ld bytes trong %s ===\n", min_size, path);
-        find_large_files(path, min_size, 0);
-    }
-    else {
-        printf("Lệnh không hợp lệ: %s\n", cmd);
-        print_usage(argv[0]);
-        return 1;
-    }
-    
+
     return 0;
 }

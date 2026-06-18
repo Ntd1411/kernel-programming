@@ -16,11 +16,19 @@ Lập trình C/C++ tương tác trực tiếp với Linux kernel thông qua syst
 
 Quản lý tiến trình:
 
-- `fork_example.c` - Tạo tiến trình con
-- `exec_family.c` - Thực thi chương trình khác
-- `signal_handler.c` - Xử lý signals
-- `zombie_reaper.c` - Xử lý zombie process
-- `daemon.c` - Tạo daemon process
+Cơ bản (Bắt đầu từ đây):
+fork_example - Fork cơ bản
+exec_family - Exec functions
+signal_handler - Signal handling
+zombie_reaper - Zombie processes
+Trung bình:
+process_groups - Process groups và sessions
+process_info - Đọc thông tin process
+Nâng cao:
+process_priority - Nice value và scheduling (cần sudo cho real-time)
+cpu_affinity - CPU affinity (cần multi-core)
+ipc_basics - IPC đầy đủ (phức tạp nhất)
+daemon - Daemon process
 
 ### 2. File I/O (file-io/)
 
@@ -84,12 +92,12 @@ make fork_example
 ./fork_example
 ```
 
-Chương trình demo:
+Chương trình tự động chạy tuần tự các demo:
 
 - Fork cơ bản với tiến trình cha và con
 - Tạo nhiều tiến trình con
 - Fork tree (cây tiến trình)
-- Chia sẻ và copy-on-write
+- Dữ liệu không chia sẻ sau fork
 
 #### Exec Family
 
@@ -98,23 +106,30 @@ make exec_family
 ./exec_family
 ```
 
-Demo các hàm exec:
+Chương trình tự động demo các hàm exec:
 
 - `execl()` - Exec với list arguments
-- `execv()` - Exec với vector
-- `execle()` - Exec với environment
-- `execvp()` - Exec với PATH search
+- `execlp()` - Exec với PATH search
+- `execv()` - Exec với array arguments
+- `execvp()` - Array args với PATH
+- `execle()` - Exec với custom environment
+- Shell command execution
+- Exec với input
 
 #### Signal Handler
 
 ```bash
 make signal_handler
-./signal_handler 1    # Basic signal (Ctrl+C)
-./signal_handler 2    # sigaction()
-./signal_handler 3    # alarm và timeout
-./signal_handler 4    # signal blocking/masking
-./signal_handler 5    # send signal giữa processes
+./signal_handler
 ```
+
+Menu tương tác để chọn demo:
+
+- 1: Basic signal handler (Ctrl+C)
+- 2: sigaction()
+- 3: alarm và SIGALRM
+- 4: Block/unblock signals
+- 5: Send signal giữa processes
 
 Signals được xử lý:
 
@@ -127,12 +142,97 @@ Signals được xử lý:
 
 ```bash
 make zombie_reaper
-./zombie_reaper 1     # Tạo zombie process
-./zombie_reaper 2     # Auto-reap với SIGCHLD
-./zombie_reaper 3     # waitpid với WNOHANG
-./zombie_reaper 4     # Wait specific child
-./zombie_reaper 5     # Double fork technique
+./zombie_reaper
 ```
+
+Chương trình tự động chạy tuần tự các demo:
+
+- Tạo và reap zombie process
+- Auto-reap với SIGCHLD
+- waitpid() với WNOHANG
+- Wait specific child
+- Double fork technique
+
+#### Process Groups
+
+```bash
+make process_groups
+./process_groups
+```
+
+Chương trình tự động demo process groups và sessions:
+
+- Các ID cơ bản (PID, PPID, PGID, SID)
+- Tạo process group mới
+- Nhóm tiến trình gia đình
+- Gửi signal đến toàn bộ group
+- Tạo session mới với setsid()
+- Mô phỏng job control
+
+#### Process Info
+
+```bash
+make process_info
+./process_info
+```
+
+Chương trình tự động đọc thông tin process:
+
+- Đọc /proc/[pid]/status
+- Đọc /proc/[pid]/stat
+- Command line arguments
+- getrusage() - thống kê tài nguyên
+- Đo CPU time với times()
+- Thống kê tiến trình con
+- Đọc biến môi trường
+
+#### Process Priority
+
+```bash
+make process_priority
+./process_priority
+# Hoặc với sudo cho real-time scheduling:
+sudo ./process_priority
+```
+
+Chương trình tự động demo nice value và scheduling:
+
+- Thay đổi nice value
+- Lấy priority của process/group/user
+- So sánh hiệu suất với nice khác nhau
+- Real-time scheduling (SCHED_FIFO/RR) - cần sudo
+- Thông tin các scheduling policies
+
+#### CPU Affinity
+
+```bash
+make cpu_affinity
+./cpu_affinity
+```
+
+Chương trình tự động demo CPU affinity:
+
+- Lấy CPU affinity hiện tại
+- Đặt CPU affinity
+- Fork với CPU affinity khác nhau
+- Thread affinity với pthread
+- Kế thừa CPU affinity từ cha
+
+#### IPC Basics
+
+```bash
+make ipc_basics
+./ipc_basics
+```
+
+Chương trình tự động demo tất cả phương thức IPC:
+
+- Unnamed pipes (pipe)
+- Two-way communication
+- Named pipes (FIFO)
+- Message queues (basic và priority)
+- Shared memory (System V và POSIX)
+- Semaphores (System V và POSIX)
 
 #### Daemon Process
 
@@ -141,13 +241,16 @@ make daemon
 ./daemon start        # Start daemon
 ./daemon status       # Check status
 ./daemon stop         # Stop daemon
+./daemon reload       # Reload config (SIGHUP)
 
 # Xem log
 tail -f /tmp/my_daemon.log
 
-# Reload config
+# Reload config thủ công
 kill -HUP $(cat /tmp/my_daemon.pid)
 ```
+
+Daemon chạy nền và ghi log mỗi 5 giây.
 
 ### 2. File I/O
 
