@@ -60,7 +60,8 @@ void sigalrm_handler(int signum) {
 void example1_basic_signal() {
     printf("\n=== Ví dụ 1: Signal handler cơ bản ===\n");
     printf("PID: %d\n", getpid());
-    printf("Nhấn Ctrl+C để gửi SIGINT (tối đa 3 lần)\n\n");
+    printf("Nhấn Ctrl+C để gửi SIGINT\n");
+    printf("Nhấn 3 lần để thoát chương trình\n\n");
     
     // Đăng ký signal handler
     signal(SIGINT, sigint_handler);
@@ -69,16 +70,10 @@ void example1_basic_signal() {
     // Reset counter
     signal_count = 0;
     
-    // Vòng lặp với timeout
-    int timeout = 10;
-    while (timeout > 0 && signal_count < 3) {
-        printf("Đang chạy... (signal_count=%d, còn %d giây)\n", signal_count, timeout);
-        sleep(1);
-        timeout--;
-    }
-    
-    if (signal_count == 0) {
-        printf("Hết thời gian, chuyển ví dụ tiếp theo\n");
+    // Vòng lặp chính
+    while (signal_count < 3) {
+        printf("Đang chạy... (signal_count=%d)\n", signal_count);
+        sleep(2);
     }
 }
 
@@ -106,11 +101,17 @@ void example2_sigaction() {
     }
     
     printf("Đã đăng ký handler cho SIGUSR1 và SIGUSR2\n");
-    printf("Có thể test bằng: kill -SIGUSR1 %d hoặc kill -SIGUSR2 %d\n", getpid(), getpid());
-    printf("Đợi 5 giây...\n\n");
+    printf("Thử gửi signal:\n");
+    printf("  kill -SIGUSR1 %d\n", getpid());
+    printf("  kill -SIGUSR2 %d\n", getpid());
+    printf("\nNhấn Ctrl+C để dừng\n\n");
     
-    sleep(5);
-    printf("Hoàn thành ví dụ 2\n");
+    signal(SIGINT, sigint_handler);
+    signal_count = 0;
+    
+    while (signal_count < 3) {
+        sleep(1);
+    }
 }
 
 void example3_alarm() {
@@ -157,7 +158,8 @@ void example4_signal_blocking() {
         exit(EXIT_FAILURE);
     }
     
-    printf("Đã unblock SIGINT\n");
+    printf("Giờ Ctrl+C sẽ hoạt động bình thường\n");
+    sleep(3);
 }
 
 void example5_send_signal() {
@@ -197,33 +199,59 @@ void example5_send_signal() {
     }
 }
 
+void print_menu() {
+    printf("\n=== MENU: Signal Handling ===\n");
+    printf("1. Basic signal handler (Ctrl+C)\n");
+    printf("2. sigaction()\n");
+    printf("3. alarm()\n");
+    printf("4. Block/unblock signals\n");
+    printf("5. Send signal giữa tiến trình\n");
+    printf("0. Thoát\n");
+    printf("Chọn: ");
+}
+
 int main() {
     printf("=== SIGNAL HANDLER EXAMPLES ===\n");
     printf("PID: %d\n", getpid());
     
-    example1_basic_signal();
-    sleep(1);
+    int choice;
     
-    example2_sigaction();
-    sleep(1);
-    
-    example3_alarm();
-    sleep(1);
-    
-    example4_signal_blocking();
-    sleep(1);
-    
-    example5_send_signal();
-    
-    printf("\n=== HOÀN THÀNH ===\n");
-    printf("\nTóm tắt signal handling:\n");
-    printf("  signal()      - đăng ký signal handler đơn giản\n");
-    printf("  sigaction()   - đăng ký handler nâng cao (khuyến nghị)\n");
-    printf("  kill()        - gửi signal cho tiến trình khác\n");
-    printf("  alarm()       - đặt timer gửi SIGALRM\n");
-    printf("  pause()       - đợi signal\n");
-    printf("  sigprocmask() - block/unblock signals\n");
-    printf("  Lưu ý: Chỉ dùng async-signal-safe functions trong handler\n");
+    while (1) {
+        print_menu();
+        
+        if (scanf("%d", &choice) != 1) {
+            while (getchar() != '\n');
+            printf("Lựa chọn không hợp lệ!\n");
+            continue;
+        }
+        
+        switch (choice) {
+            case 1:
+                example1_basic_signal();
+                break;
+            case 2:
+                example2_sigaction();
+                break;
+            case 3:
+                example3_alarm();
+                break;
+            case 4:
+                example4_signal_blocking();
+                break;
+            case 5:
+                example5_send_signal();
+                break;
+            case 0:
+                printf("\nTạm biệt!\n");
+                exit(0);
+            default:
+                printf("\nLựa chọn không hợp lệ!\n");
+        }
+        
+        printf("\nNhấn Enter để tiếp tục...");
+        while (getchar() != '\n');
+        getchar();
+    }
     
     return 0;
 }
