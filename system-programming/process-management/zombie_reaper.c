@@ -82,6 +82,7 @@ void example2_sigchld_handler() {
         } else if (pid == 0) {
             printf("  [CON %d] PID=%d, sleep %d giây\n", i + 1, getpid(), i + 1);
             sleep(i + 1);
+            printf("  [CON %d] PID=%d kết thúc\n", i + 1, getpid());
             exit(i);
         }
         
