@@ -16,19 +16,25 @@
 #include <sys/stat.h>
 
 #define BUFFER_SIZE 1024
+#define MAX_INPUT 256
 
-void print_usage(const char *prog_name) {
-    printf("Sử dụng:\n");
-    printf("  %s write <file> <content>   - Ghi nội dung vào file\n", prog_name);
-    printf("  %s read <file>              - Đọc nội dung file\n", prog_name);
-    printf("  %s append <file> <content>  - Thêm nội dung vào cuối file\n", prog_name);
-    printf("  %s copy <src> <dst>         - Sao chép file\n", prog_name);
-    printf("  %s stat <file>              - Hiển thị thông tin file\n", prog_name);
+void print_menu(void) {
+    printf("\n=== MENU FILE OPERATIONS ===\n");
+    printf("1. Ghi file (write)\n");
+    printf("2. Đọc file (read)\n");
+    printf("3. Thêm vào file (append)\n");
+    printf("4. Sao chép file (copy)\n");
+    printf("5. Thông tin file (stat)\n");
+    printf("0. Thoát\n");
+    printf("Chọn: ");
 }
 
 int write_file(const char *filename, const char *content) {
     int fd;
     ssize_t bytes_written;
+    
+    printf("\n=== Ghi File ===\n");
+    printf("File: %s\n", filename);
     
     fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd == -1) {
@@ -53,6 +59,8 @@ int read_file(const char *filename) {
     int fd;
     char buffer[BUFFER_SIZE];
     ssize_t bytes_read;
+    
+    printf("\n=== Đọc File ===\n");
     
     fd = open(filename, O_RDONLY);
     if (fd == -1) {
@@ -84,6 +92,9 @@ int append_file(const char *filename, const char *content) {
     int fd;
     ssize_t bytes_written;
     
+    printf("\n=== Thêm vào File ===\n");
+    printf("File: %s\n", filename);
+    
     fd = open(filename, O_WRONLY | O_CREAT | O_APPEND, 0644);
     if (fd == -1) {
         perror("open");
@@ -108,6 +119,10 @@ int copy_file(const char *src, const char *dst) {
     char buffer[BUFFER_SIZE];
     ssize_t bytes_read, bytes_written;
     off_t total_bytes = 0;
+    
+    printf("\n=== Sao Chép File ===\n");
+    printf("Từ: %s\n", src);
+    printf("Đến: %s\n", dst);
     
     src_fd = open(src, O_RDONLY);
     if (src_fd == -1) {
@@ -150,12 +165,14 @@ int copy_file(const char *src, const char *dst) {
 int show_stat(const char *filename) {
     struct stat file_stat;
     
+    printf("\n=== Thông Tin File ===\n");
+    
     if (stat(filename, &file_stat) == -1) {
         perror("stat");
         return -1;
     }
     
-    printf("Thông tin file: %s\n", filename);
+    printf("File: %s\n", filename);
     printf("----------------------------------------\n");
     printf("Inode:          %ld\n", file_stat.st_ino);
     printf("Size:           %ld bytes\n", file_stat.st_size);
@@ -185,58 +202,91 @@ int show_stat(const char *filename) {
     return 0;
 }
 
-int main(int argc, char *argv[]) {
-    if (argc < 2) {
-        print_usage(argv[0]);
-        return 1;
-    }
+int main(void) {
+    int choice;
+    char filename[MAX_INPUT];
+    char content[MAX_INPUT];
+    char src_file[MAX_INPUT];
+    char dst_file[MAX_INPUT];
     
-    const char *command = argv[1];
+    printf("=== FILE OPERATIONS DEMO ===\n");
+    printf("PID: %d\n", getpid());
     
-    if (strcmp(command, "write") == 0) {
-        if (argc != 4) {
-            printf("Lỗi: Thiếu tham số\n");
-            printf("Sử dụng: %s write <file> <content>\n", argv[0]);
-            return 1;
+    while (1) {
+        print_menu();
+        
+        if (scanf("%d", &choice) != 1) {
+            while (getchar() != '\n');
+            printf("Lỗi: Vui lòng nhập số!\n");
+            continue;
         }
-        return write_file(argv[2], argv[3]);
-    }
-    else if (strcmp(command, "read") == 0) {
-        if (argc != 3) {
-            printf("Lỗi: Thiếu tham số\n");
-            printf("Sử dụng: %s read <file>\n", argv[0]);
-            return 1;
+        while (getchar() != '\n');
+        
+        if (choice == 0) {
+            printf("\nThoát chương trình.\n");
+            break;
         }
-        return read_file(argv[2]);
-    }
-    else if (strcmp(command, "append") == 0) {
-        if (argc != 4) {
-            printf("Lỗi: Thiếu tham số\n");
-            printf("Sử dụng: %s append <file> <content>\n", argv[0]);
-            return 1;
+        
+        switch (choice) {
+            case 1:
+                printf("Nhập tên file: ");
+                if (fgets(filename, sizeof(filename), stdin) == NULL) break;
+                filename[strcspn(filename, "\n")] = 0;
+                
+                printf("Nhập nội dung: ");
+                if (fgets(content, sizeof(content), stdin) == NULL) break;
+                content[strcspn(content, "\n")] = 0;
+                
+                write_file(filename, content);
+                break;
+                
+            case 2:
+                printf("Nhập tên file: ");
+                if (fgets(filename, sizeof(filename), stdin) == NULL) break;
+                filename[strcspn(filename, "\n")] = 0;
+                
+                read_file(filename);
+                break;
+                
+            case 3:
+                printf("Nhập tên file: ");
+                if (fgets(filename, sizeof(filename), stdin) == NULL) break;
+                filename[strcspn(filename, "\n")] = 0;
+                
+                printf("Nhập nội dung thêm vào: ");
+                if (fgets(content, sizeof(content), stdin) == NULL) break;
+                content[strcspn(content, "\n")] = 0;
+                
+                append_file(filename, content);
+                break;
+                
+            case 4:
+                printf("Nhập file nguồn: ");
+                if (fgets(src_file, sizeof(src_file), stdin) == NULL) break;
+                src_file[strcspn(src_file, "\n")] = 0;
+                
+                printf("Nhập file đích: ");
+                if (fgets(dst_file, sizeof(dst_file), stdin) == NULL) break;
+                dst_file[strcspn(dst_file, "\n")] = 0;
+                
+                copy_file(src_file, dst_file);
+                break;
+                
+            case 5:
+                printf("Nhập tên file: ");
+                if (fgets(filename, sizeof(filename), stdin) == NULL) break;
+                filename[strcspn(filename, "\n")] = 0;
+                
+                show_stat(filename);
+                break;
+                
+            default:
+                printf("Lỗi: Lựa chọn không hợp lệ!\n");
+                break;
         }
-        return append_file(argv[2], argv[3]);
-    }
-    else if (strcmp(command, "copy") == 0) {
-        if (argc != 4) {
-            printf("Lỗi: Thiếu tham số\n");
-            printf("Sử dụng: %s copy <src> <dst>\n", argv[0]);
-            return 1;
-        }
-        return copy_file(argv[2], argv[3]);
-    }
-    else if (strcmp(command, "stat") == 0) {
-        if (argc != 3) {
-            printf("Lỗi: Thiếu tham số\n");
-            printf("Sử dụng: %s stat <file>\n", argv[0]);
-            return 1;
-        }
-        return show_stat(argv[2]);
-    }
-    else {
-        printf("Lỗi: Lệnh không hợp lệ: %s\n", command);
-        print_usage(argv[0]);
-        return 1;
+        
+        printf("\nNhấn Enter để tiếp tục...");
+        getchar();
     }
     
     return 0;
