@@ -4,7 +4,12 @@
  * Minh họa: inotify_init, inotify_add_watch, inotify_rm_watch
  * 
  * Biên dịch: gcc -o inotify_example inotify_example.c
- * Chạy: ./inotify_example <path1> [path2] ...
+ * Chạy: ./inotify_example
+ * 
+ * Chương trình sử dụng menu tương tác để chọn chức năng:
+ * 1. Giám sát 1 đường dẫn
+ * 2. Giám sát nhiều đường dẫn cùng lúc
+ * 3. Giám sát với thời gian timeout
  */
 
 #include <stdio.h>
@@ -227,43 +232,109 @@ void monitor_with_timeout(const char *path, int timeout_sec) {
     close(fd);
 }
 
-void print_usage(const char *prog) {
-    printf("Sử dụng:\n");
-    printf("  %s <path>                  - Giám sát 1 đường dẫn\n", prog);
-    printf("  %s -m <path1> <path2> ...  - Giám sát nhiều đường dẫn\n", prog);
-    printf("  %s -t <path> <seconds>     - Giám sát với timeout\n", prog);
-    printf("\nVí dụ:\n");
-    printf("  %s /tmp\n", prog);
-    printf("  %s -m /tmp /var/log\n", prog);
-    printf("  %s -t /home/user 30\n", prog);
+void print_menu(void) {
+    printf("\n=== CHƯƠNG TRÌNH GIÁM SÁT FILE VỚI INOTIFY ===\n");
+    printf("1. Giám sát 1 đường dẫn\n");
+    printf("2. Giám sát nhiều đường dẫn\n");
+    printf("3. Giám sát với timeout\n");
+    printf("0. Thoát\n");
+    printf("=============================================\n");
+    printf("Chọn chức năng: ");
+}
+
+void get_input_string(const char *prompt, char *buffer, size_t size) {
+    printf("%s", prompt);
+    if (fgets(buffer, size, stdin) != NULL) {
+        size_t len = strlen(buffer);
+        if (len > 0 && buffer[len - 1] == '\n') {
+            buffer[len - 1] = '\0';
+        }
+    }
 }
 
 int main(int argc, char *argv[]) {
-    if (argc < 2) {
-        print_usage(argv[0]);
-        return 1;
-    }
+    int choice;
+    char path[PATH_MAX];
+    char paths[10][PATH_MAX];
+    int path_count;
+    int timeout;
     
-    if (strcmp(argv[1], "-m") == 0) {
-        if (argc < 3) {
-            printf("Lỗi: Cần ít nhất 1 đường dẫn\n");
-            return 1;
+    while (1) {
+        print_menu();
+        
+        if (scanf("%d", &choice) != 1) {
+            while (getchar() != '\n');
+            printf("Lỗi: Vui lòng nhập số\n");
+            continue;
         }
-        monitor_multiple_paths(&argv[2], argc - 2);
-    }
-    else if (strcmp(argv[1], "-t") == 0) {
-        if (argc != 4) {
-            printf("Sử dụng: %s -t <path> <seconds>\n", argv[0]);
-            return 1;
+        getchar();
+        
+        switch (choice) {
+            case 1:
+                printf("\n--- Giám sát 1 đường dẫn ---\n");
+                get_input_string("Nhập đường dẫn cần giám sát: ", path, sizeof(path));
+                
+                if (strlen(path) == 0) {
+                    printf("Lỗi: Đường dẫn không được để trống\n");
+                    break;
+                }
+                
+                uint32_t mask = IN_CREATE | IN_DELETE | IN_MODIFY | 
+                                IN_MOVED_FROM | IN_MOVED_TO | 
+                                IN_CLOSE_WRITE | IN_OPEN;
+                monitor_path(path, mask);
+                break;
+                
+            case 2:
+                printf("\n--- Giám sát nhiều đường dẫn ---\n");
+                printf("Nhập số lượng đường dẫn (tối đa 10): ");
+                
+                if (scanf("%d", &path_count) != 1 || path_count < 1 || path_count > 10) {
+                    printf("Lỗi: Số lượng không hợp lệ\n");
+                    while (getchar() != '\n');
+                    break;
+                }
+                getchar();
+                
+                char *path_ptrs[10];
+                for (int i = 0; i < path_count; i++) {
+                    char prompt[100];
+                    snprintf(prompt, sizeof(prompt), "Đường dẫn %d: ", i + 1);
+                    get_input_string(prompt, paths[i], sizeof(paths[i]));
+                    path_ptrs[i] = paths[i];
+                }
+                
+                monitor_multiple_paths(path_ptrs, path_count);
+                break;
+                
+            case 3:
+                printf("\n--- Giám sát với timeout ---\n");
+                get_input_string("Nhập đường dẫn cần giám sát: ", path, sizeof(path));
+                
+                if (strlen(path) == 0) {
+                    printf("Lỗi: Đường dẫn không được để trống\n");
+                    break;
+                }
+                
+                printf("Nhập thời gian timeout (giây): ");
+                if (scanf("%d", &timeout) != 1 || timeout <= 0) {
+                    printf("Lỗi: Thời gian không hợp lệ\n");
+                    while (getchar() != '\n');
+                    break;
+                }
+                getchar();
+                
+                monitor_with_timeout(path, timeout);
+                break;
+                
+            case 0:
+                printf("\nKết thúc chương trình. Tạm biệt!\n");
+                return 0;
+                
+            default:
+                printf("Lỗi: Lựa chọn không hợp lệ. Vui lòng chọn lại.\n");
+                break;
         }
-        int timeout = atoi(argv[3]);
-        monitor_with_timeout(argv[2], timeout);
-    }
-    else {
-        uint32_t mask = IN_CREATE | IN_DELETE | IN_MODIFY | 
-                        IN_MOVED_FROM | IN_MOVED_TO | 
-                        IN_CLOSE_WRITE | IN_OPEN;
-        monitor_path(argv[1], mask);
     }
     
     return 0;
