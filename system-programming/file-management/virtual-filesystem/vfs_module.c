@@ -50,6 +50,10 @@ enum {
     SIMPLEFS_INFO_INO = 3,
 };
 
+/* Global inodes */
+static struct inode *hello_inode;
+static struct inode *info_inode;
+
 /* Forward declarations */
 static struct inode *simplefs_get_inode(struct super_block *sb, 
                                         const struct inode *dir,
@@ -123,23 +127,17 @@ static struct dentry *simplefs_lookup(struct inode *dir, struct dentry *dentry,
 {
     struct inode *inode = NULL;
     
-    pr_info("simplefs: lookup '%s' in directory inode %lu\n", 
-            dentry->d_name.name, dir->i_ino);
+    pr_info("simplefs: lookup '%s'\n", dentry->d_name.name);
     
     /* Chi ho tro lookup trong root directory */
     if (dir->i_ino != SIMPLEFS_ROOT_INO)
         goto out;
     
-    /* Tim file theo ten */
-    if (strcmp(dentry->d_name.name, "hello") == 0) {
-        inode = simplefs_get_inode(dir->i_sb, dir, S_IFREG | 0644, 0);
-        if (inode)
-            inode->i_ino = SIMPLEFS_HELLO_INO;
-    } else if (strcmp(dentry->d_name.name, "info") == 0) {
-        inode = simplefs_get_inode(dir->i_sb, dir, S_IFREG | 0644, 0);
-        if (inode)
-            inode->i_ino = SIMPLEFS_INFO_INO;
-    }
+    /* Su dung global inode thay vi tao moi */
+    if (strcmp(dentry->d_name.name, "hello") == 0)
+        inode = igrab(hello_inode);
+    else if (strcmp(dentry->d_name.name, "info") == 0)
+        inode = igrab(info_inode);
     
 out:
     /* Gan inode vao dentry - NULL inode nghia la file khong ton tai */
@@ -186,9 +184,8 @@ static int simplefs_iterate(struct file *file, struct dir_context *ctx)
  * simplefs_dir_operations - Cac thao tac voi directory
  */
 static const struct file_operations simplefs_dir_operations = {
-    .read = generic_read_dir,
     .iterate_shared = simplefs_iterate,
-    .llseek = generic_file_llseek,
+    .llseek = default_llseek,
 };
 
 /*
@@ -223,7 +220,7 @@ static struct inode *simplefs_get_inode(struct super_block *sb,
             /* Directory inode */
             inode->i_op = &simplefs_dir_inode_operations;
             inode->i_fop = &simplefs_dir_operations;
-            inc_nlink(inode);
+            set_nlink(inode, 2);
             break;
         case S_IFREG:
             /* Regular file inode */
@@ -314,6 +311,24 @@ static int simplefs_fill_super(struct super_block *sb, void *data, int silent)
     
     root_inode->i_ino = SIMPLEFS_ROOT_INO;
     
+    /* Tao global inodes cho hello va info */
+    hello_inode = simplefs_get_inode(sb, root_inode, S_IFREG | 0444, 0);
+    if (!hello_inode) {
+        iput(root_inode);
+        pr_err("simplefs: failed to create hello inode\n");
+        return -ENOMEM;
+    }
+    hello_inode->i_ino = SIMPLEFS_HELLO_INO;
+    
+    info_inode = simplefs_get_inode(sb, root_inode, S_IFREG | 0444, 0);
+    if (!info_inode) {
+        iput(hello_inode);
+        iput(root_inode);
+        pr_err("simplefs: failed to create info inode\n");
+        return -ENOMEM;
+    }
+    info_inode->i_ino = SIMPLEFS_INFO_INO;
+    
     /* Tao root dentry */
     root_dentry = d_make_root(root_inode);
     if (!root_dentry) {
@@ -357,6 +372,18 @@ static struct dentry *simplefs_mount(struct file_system_type *fs_type,
 static void simplefs_kill_sb(struct super_block *sb)
 {
     pr_info("simplefs: killing superblock\n");
+    
+    /* Cleanup global inodes */
+    if (hello_inode) {
+        iput(hello_inode);
+        hello_inode = NULL;
+    }
+    
+    if (info_inode) {
+        iput(info_inode);
+        info_inode = NULL;
+    }
+    
     kill_litter_super(sb);
     pr_info("simplefs: filesystem unmounted\n");
 }
