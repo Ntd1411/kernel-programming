@@ -24,6 +24,8 @@
 #include <linux/magic.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+#include <linux/mnt_idmapping.h>
+#include <linux/statfs.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("VFS Learning");
@@ -210,8 +212,10 @@ static struct inode *simplefs_get_inode(struct super_block *sb,
         return NULL;
     
     inode->i_ino = get_next_ino();
-    inode_init_owner(&init_user_ns, inode, dir, mode);
-    inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
+    inode_init_owner(&nop_mnt_idmap, inode, dir, mode);
+    
+    /* Set timestamps */
+    simple_inode_init_ts(inode);
     
     switch (mode & S_IFMT) {
         case S_IFDIR:
