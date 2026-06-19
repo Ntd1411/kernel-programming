@@ -93,3 +93,5 @@ sudo pacman -S linux-headers
 - Filesystem là read-only
 - Dữ liệu chỉ tồn tại trong memory
 - Module cần quyền root để load/unload
+
+cd kernel-programming/system-programming/file-management/

@@ -82,9 +82,20 @@ df -h ${MOUNT_POINT}
 echo ""
 
 echo "9. Cleanup - Umount va unload module..."
-umount ${MOUNT_POINT} 2>/dev/null
-rmmod vfs_module 2>/dev/null
-echo "   [OK] Cleanup hoan tat"
+if umount ${MOUNT_POINT} 2>/dev/null; then
+    echo "   [OK] Umount thanh cong"
+else
+    echo "   [WARN] Umount that bai, thu force umount..."
+    umount -f ${MOUNT_POINT} 2>/dev/null || umount -l ${MOUNT_POINT} 2>/dev/null
+    sleep 1
+fi
+
+if rmmod vfs_module 2>/dev/null; then
+    echo "   [OK] Module da duoc unload"
+else
+    echo "   [WARN] Khong the unload module"
+    echo "   Thu force remove: rmmod -f vfs_module"
+fi
 echo ""
 
 echo "=========================================="
