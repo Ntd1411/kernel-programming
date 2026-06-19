@@ -28,10 +28,37 @@ fi
 echo ""
 
 echo "2. Load module vao kernel..."
+
+# Kiem tra module da duoc load chua
+if lsmod | grep -q "^vfs_module"; then
+    echo "   [WARN] Module da duoc load truoc do"
+    echo "   Dang cleanup..."
+    
+    # Thu umount neu co mount point
+    if mount | grep -q simplefs; then
+        umount -f ${MOUNT_POINT} 2>/dev/null || umount -l ${MOUNT_POINT} 2>/dev/null
+        sleep 1
+    fi
+    
+    # Thu unload module cu
+    if ! rmmod vfs_module 2>/dev/null; then
+        echo "   [ERROR] Khong the unload module cu"
+        echo "   Module dang duoc su dung hoac can force remove"
+        echo ""
+        echo "   Thu cac lenh sau:"
+        echo "   1. umount -l ${MOUNT_POINT}"
+        echo "   2. rmmod -f vfs_module"
+        echo "   3. Hoac reboot: sudo reboot"
+        exit 1
+    fi
+    sleep 1
+fi
+
 if insmod vfs_module.ko 2>/dev/null; then
     echo "   [OK] Module da duoc load"
 else
     echo "   [FAIL] Khong the load module"
+    dmesg | tail -20
     exit 1
 fi
 echo ""
