@@ -128,7 +128,7 @@ static struct dentry *simplefs_lookup(struct inode *dir, struct dentry *dentry,
     
     /* Chi ho tro lookup trong root directory */
     if (dir->i_ino != SIMPLEFS_ROOT_INO)
-        return ERR_PTR(-ENOENT);
+        goto out;
     
     /* Tim file theo ten */
     if (strcmp(dentry->d_name.name, "hello") == 0) {
@@ -141,9 +141,9 @@ static struct dentry *simplefs_lookup(struct inode *dir, struct dentry *dentry,
             inode->i_ino = SIMPLEFS_INFO_INO;
     }
     
-    /* Gan inode vao dentry */
+out:
+    /* Gan inode vao dentry - NULL inode nghia la file khong ton tai */
     d_add(dentry, inode);
-    
     return NULL;
 }
 
@@ -211,6 +211,7 @@ static struct inode *simplefs_get_inode(struct super_block *sb,
     if (!inode)
         return NULL;
     
+    /* Luu y: inode number se duoc gan sau boi caller neu can */
     inode->i_ino = get_next_ino();
     inode_init_owner(&nop_mnt_idmap, inode, dir, mode);
     
