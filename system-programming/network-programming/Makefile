@@ -2,7 +2,7 @@
 
 CC = gcc
 CFLAGS = -Wall -Wextra -O2 -g
-TARGETS = select_server poll_server epoll_server raw_socket packet_sniffer
+TARGETS = select_server poll_server epoll_server raw_socket packet_sniffer network_interface
 
 .PHONY: all clean test help
 
@@ -30,6 +30,11 @@ packet_sniffer: packet_sniffer.c
 	@echo "Build thành công: $@"
 	@echo "Chú ý: Cần quyền root để chạy"
 
+network_interface: network_interface.c
+	$(CC) $(CFLAGS) -o $@ $<
+	@echo "Build thành công: $@"
+	@echo "Chú ý: Một số chức năng cần quyền root (set IP, up/down interface)"
+
 clean:
 	rm -f $(TARGETS) *.o
 	@echo "Đã dọn dẹp"
@@ -54,6 +59,10 @@ test: all
 	@echo ""
 	@echo "5. Test Packet Sniffer (cần root):"
 	@echo "   sudo ./packet_sniffer eth0"
+	@echo ""
+	@echo "6. Test Network Interface:"
+	@echo "   ./network_interface           # Chế độ read-only"
+	@echo "   sudo ./network_interface      # Chế độ đầy đủ (read/write)"
 
 help:
 	@echo "Makefile cho Network Programming Examples"
@@ -65,6 +74,7 @@ help:
 	@echo "  epoll_server     - Build epoll server"
 	@echo "  raw_socket       - Build raw socket example"
 	@echo "  packet_sniffer   - Build packet sniffer"
+	@echo "  network_interface - Build network interface management tool"
 	@echo "  clean            - Xóa các file đã build"
 	@echo "  test             - Hiển thị hướng dẫn test"
 	@echo "  help             - Hiển thị help này"
