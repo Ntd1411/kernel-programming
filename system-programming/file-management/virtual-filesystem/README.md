@@ -259,4 +259,4 @@ dmesg | grep simplefs
 sudo dmesg -w
 ```
 
-cd kernel-programming/system-programming/file-management/
+cd kernel-programming/system-programming/file-management/virtual-filesystem

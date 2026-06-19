@@ -268,11 +268,22 @@ static int simplefs_drop_inode(struct inode *inode)
 }
 
 /*
+ * simplefs_evict_inode - Giai phong inode hoan toan
+ */
+static void simplefs_evict_inode(struct inode *inode)
+{
+    pr_info("simplefs: evicting inode %lu\n", inode->i_ino);
+    truncate_inode_pages_final(&inode->i_data);
+    clear_inode(inode);
+}
+
+/*
  * simplefs_super_operations - Cac thao tac voi superblock
  */
 static const struct super_operations simplefs_super_ops = {
     .statfs = simplefs_statfs,
     .drop_inode = simplefs_drop_inode,
+    .evict_inode = simplefs_evict_inode,
 };
 
 /*
