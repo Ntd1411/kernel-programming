@@ -5,6 +5,12 @@
  * 
  * Biên dịch: gcc -o memory_map memory_map.c
  * Chạy: ./memory_map
+ * 
+ * Chương trình sử dụng menu tương tác để chọn chức năng:
+ * 1. Đọc file bằng mmap
+ * 2. Ghi file bằng mmap
+ * 3. Demo shared memory giữa parent và child
+ * 4. Copy file bằng mmap
  */
 
 #include <stdio.h>
@@ -226,50 +232,99 @@ void demo_copy_file(const char *src, const char *dst) {
     close(dst_fd);
 }
 
-void print_usage(const char *prog) {
-    printf("Sử dụng:\n");
-    printf("  %s read <file>       - Đọc file bằng mmap\n", prog);
-    printf("  %s write <file>      - Ghi file bằng mmap\n", prog);
-    printf("  %s shared            - Demo shared memory\n", prog);
-    printf("  %s copy <src> <dst>  - Copy file bằng mmap\n", prog);
+void print_menu(void) {
+    printf("\n=== CHƯƠNG TRÌNH MEMORY-MAPPED I/O ===\n");
+    printf("1. Đọc file bằng mmap\n");
+    printf("2. Ghi file bằng mmap\n");
+    printf("3. Demo shared memory (parent-child)\n");
+    printf("4. Copy file bằng mmap\n");
+    printf("0. Thoát\n");
+    printf("======================================\n");
+    printf("Chọn chức năng: ");
+}
+
+void get_input_string(const char *prompt, char *buffer, size_t size) {
+    printf("%s", prompt);
+    if (fgets(buffer, size, stdin) != NULL) {
+        size_t len = strlen(buffer);
+        if (len > 0 && buffer[len - 1] == '\n') {
+            buffer[len - 1] = '\0';
+        }
+    }
 }
 
 int main(int argc, char *argv[]) {
-    if (argc < 2) {
-        print_usage(argv[0]);
-        return 1;
-    }
+    int choice;
+    char filename[256];
+    char src_file[256];
+    char dst_file[256];
     
-    const char *cmd = argv[1];
-    
-    if (strcmp(cmd, "read") == 0) {
-        if (argc != 3) {
-            printf("Sử dụng: %s read <file>\n", argv[0]);
-            return 1;
+    while (1) {
+        print_menu();
+        
+        if (scanf("%d", &choice) != 1) {
+            while (getchar() != '\n');
+            printf("Lỗi: Vui lòng nhập số\n");
+            continue;
         }
-        demo_read_mmap(argv[2]);
-    }
-    else if (strcmp(cmd, "write") == 0) {
-        if (argc != 3) {
-            printf("Sử dụng: %s write <file>\n", argv[0]);
-            return 1;
+        getchar();
+        
+        switch (choice) {
+            case 1:
+                printf("\n--- Đọc file bằng mmap ---\n");
+                get_input_string("Nhập đường dẫn file cần đọc: ", filename, sizeof(filename));
+                
+                if (strlen(filename) == 0) {
+                    printf("Lỗi: Đường dẫn không được để trống\n");
+                    break;
+                }
+                
+                demo_read_mmap(filename);
+                break;
+                
+            case 2:
+                printf("\n--- Ghi file bằng mmap ---\n");
+                get_input_string("Nhập đường dẫn file cần ghi: ", filename, sizeof(filename));
+                
+                if (strlen(filename) == 0) {
+                    printf("Lỗi: Đường dẫn không được để trống\n");
+                    break;
+                }
+                
+                demo_write_mmap(filename);
+                break;
+                
+            case 3:
+                demo_shared_memory();
+                break;
+                
+            case 4:
+                printf("\n--- Copy file bằng mmap ---\n");
+                get_input_string("Nhập đường dẫn file nguồn: ", src_file, sizeof(src_file));
+                
+                if (strlen(src_file) == 0) {
+                    printf("Lỗi: Đường dẫn nguồn không được để trống\n");
+                    break;
+                }
+                
+                get_input_string("Nhập đường dẫn file đích: ", dst_file, sizeof(dst_file));
+                
+                if (strlen(dst_file) == 0) {
+                    printf("Lỗi: Đường dẫn đích không được để trống\n");
+                    break;
+                }
+                
+                demo_copy_file(src_file, dst_file);
+                break;
+                
+            case 0:
+                printf("\nKết thúc chương trình. Tạm biệt!\n");
+                return 0;
+                
+            default:
+                printf("Lỗi: Lựa chọn không hợp lệ. Vui lòng chọn lại.\n");
+                break;
         }
-        demo_write_mmap(argv[2]);
-    }
-    else if (strcmp(cmd, "shared") == 0) {
-        demo_shared_memory();
-    }
-    else if (strcmp(cmd, "copy") == 0) {
-        if (argc != 4) {
-            printf("Sử dụng: %s copy <src> <dst>\n", argv[0]);
-            return 1;
-        }
-        demo_copy_file(argv[2], argv[3]);
-    }
-    else {
-        printf("Lệnh không hợp lệ: %s\n", cmd);
-        print_usage(argv[0]);
-        return 1;
     }
     
     return 0;

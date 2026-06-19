@@ -4,7 +4,7 @@ CC = gcc
 CFLAGS = -Wall -Wextra -O2 -g
 LDFLAGS = -lpthread
 
-TARGETS = tcp_server tcp_client udp_server udp_client echo_server
+TARGETS = tcp_server tcp_client udp_server udp_client echo_server echo_client
 
 .PHONY: all clean test help
 
@@ -30,6 +30,10 @@ echo_server: echo_server.c
 	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
 	@echo "Build thành công: $@"
 
+echo_client: echo_client.c
+	$(CC) $(CFLAGS) -o $@ $<
+	@echo "Build thành công: $@"
+
 clean:
 	rm -f $(TARGETS) *.o
 	@echo "Đã dọn dẹp"
@@ -45,9 +49,28 @@ test: all
 	@echo "   Terminal 1: ./udp_server 8081"
 	@echo "   Terminal 2: ./udp_client localhost 8081"
 	@echo ""
-	@echo "3. Test Echo Server (multi-threaded):"
+	@echo "3. Test Echo Server/Client (multi-threaded):"
 	@echo "   Terminal 1: ./echo_server 8082"
-	@echo "   Terminal 2: ./tcp_client localhost 8082"
+	@echo "   Terminal 2: ./echo_client localhost 8082"
+	@echo "   Terminal 3: ./echo_client localhost 8082 (nhiều client đồng thời)"
+	@echo ""
+
+help:
+	@echo "=== Socket Programming Examples ==="
+	@echo ""
+	@echo "Các chương trình:"
+	@echo "  tcp_server    - TCP server đơn giản (sequential)"
+	@echo "  tcp_client    - TCP client cơ bản"
+	@echo "  udp_server    - UDP server"
+	@echo "  udp_client    - UDP client"
+	@echo "  echo_server   - Echo server đa luồng (multi-threaded)"
+	@echo "  echo_client   - Echo client cho echo server"
+	@echo ""
+	@echo "Lệnh make:"
+	@echo "  make          - Build tất cả"
+	@echo "  make clean    - Xóa các file binary"
+	@echo "  make test     - Hiển thị hướng dẫn test"
+	@echo "  make help     - Hiển thị trợ giúp này"
 	@echo "   Terminal 3: ./tcp_client localhost 8082"
 	@echo ""
 	@echo "4. Test với telnet:"
