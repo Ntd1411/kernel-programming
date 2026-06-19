@@ -43,7 +43,8 @@ pause
 
 print_step "Workflow 2: System Maintenance Check"
 echo "→ Checking disk space..."
-"${PARENT_DIR}/task-scheduler/scheduled_tasks.sh" check_disk
+sudo "${PARENT_DIR}/task-scheduler/scheduled_tasks.sh" check_disk 2>/dev/null || \
+    "${PARENT_DIR}/task-scheduler/scheduled_tasks.sh" check_disk
 
 echo "→ Checking system uptime..."
 "${PARENT_DIR}/time-management/time_tracker.sh" uptime
