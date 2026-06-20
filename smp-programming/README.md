@@ -1,203 +1,174 @@
-# Phần 4: Symmetric Multi-Processing (SMP)
+# Lập Trình SMP - Các Ví Dụ Đồng Bộ Hóa Kernel
 
-Lập trình đa luồng và tận dụng hiệu năng đa nhân CPU trên Linux.
+Bộ sưu tập 10 ví dụ thực hành minh họa các cơ chế đồng bộ hóa trong Linux kernel cho hệ thống Symmetric Multi-Processing (SMP).
 
-## Mục Tiêu
+## Giới Thiệu
 
-- Hiểu kiến trúc SMP và đa nhân
-- Lập trình đa luồng với POSIX Threads (pthreads)
-- Đồng bộ hóa: mutex, semaphore, condition variables
-- CPU affinity và scheduling
-- Xử lý race conditions và deadlock
-- Tối ưu hiệu năng đa luồng
+Thư mục này chứa các ví dụ user-space mô phỏng các primitive đồng bộ hóa của kernel, giúp hiểu sâu về:
+- Race conditions và cách phát hiện
+- Atomic operations và memory ordering
+- Spin locks (naive và optimized)
+- Mutexes (fast path, slow path, unlock)
+- Interrupt disabling và preemption control
+- RCU (Read-Copy-Update)
 
-## Cấu Trúc
+Mỗi ví dụ được thiết kế để minh họa một khái niệm cụ thể từ lý thuyết SMP, dựa trên tài liệu `smp-lecture.html` và kế hoạch trong `smp-audit.html`.
 
-### 1. Pthread Basics (pthread-basics/)
+## Danh Sách Các Ví Dụ
 
-Lập trình đa luồng cơ bản:
-- `thread_create.c` - Tạo và kết thúc thread
-- `thread_args.c` - Truyền tham số cho thread
-- `thread_return.c` - Nhận giá trị trả về từ thread
-- `thread_detach.c` - Detached threads
-- `thread_cancel.c` - Hủy thread
+### [ex01: Race Condition](./race-condition-ex01/)
+**Khái niệm:** Race condition cổ điển trong quản lý tài nguyên  
+**Demo:** Lỗi double-free khi nhiều luồng đồng thời giảm counter  
+**File:** [race-condition-ex01/README.md](./race-condition-ex01/README.md)
 
-### 2. Synchronization (synchronization/)
+### [ex02: Atomic Fix](./atomic-fix-ex02/)
+**Khái niệm:** Sửa race condition bằng atomic operations  
+**Demo:** Sử dụng `atomic_fetch_sub` để đảm bảo test-and-decrement atomic  
+**File:** [atomic-fix-ex02/README.md](./atomic-fix-ex02/README.md)
 
-Đồng bộ hóa thread:
-- `mutex_basic.c` - Mutex locks
-- `mutex_deadlock.c` - Phát hiện và tránh deadlock
-- `rwlock.c` - Reader-Writer locks
-- `semaphore.c` - Semaphore
-- `condition_var.c` - Condition variables
-- `barrier.c` - Thread barriers
-- `spinlock.c` - Spinlocks
+### [ex03: IRQ Disable](./irq-disable-ex03/)
+**Khái niệm:** Tắt ngắt để đồng bộ hóa  
+**Demo:** Mô phỏng `local_irq_disable/enable/save/restore` bằng signal masking  
+**File:** [irq-disable-ex03/README.md](./irq-disable-ex03/README.md)
 
-### 3. CPU Affinity (cpu-affinity/)
+### [ex04: Spinlock Basic](./spinlock-basic-ex04/)
+**Khái niệm:** Spin lock cơ bản với atomic test-and-set  
+**Demo:** Mô phỏng lệnh `lock bts` của x86, theo dõi contention  
+**File:** [spinlock-basic-ex04/README.md](./spinlock-basic-ex04/README.md)
 
-CPU affinity và scheduling:
-- `cpu_info.c` - Hiển thị thông tin CPU
-- `set_affinity.c` - Gán thread vào CPU cụ thể
-- `load_balance.c` - Cân bằng tải giữa các CPU
-- `numa_aware.c` - NUMA-aware programming
-- `scheduling_policy.c` - Real-time scheduling
+### [ex05: Spinlock Optimized](./spinlock-optimized-ex05/)
+**Khái niệm:** Tối ưu spin lock để giảm cache thrashing  
+**Demo:** Read-first optimization và lệnh PAUSE, so sánh với naive version  
+**File:** [spinlock-optimized-ex05/README.md](./spinlock-optimized-ex05/README.md)
 
-## Yêu Cầu
+### [ex06: Preemption Counter](./preemption-counter-ex06/)
+**Khái niệm:** Cơ chế preemption counter của kernel  
+**Demo:** Bit-field layout cho PREEMPT/SOFTIRQ/HARDIRQ/NMI, hàm `in_interrupt()`  
+**File:** [preemption-counter-ex06/README.md](./preemption-counter-ex06/README.md)
+
+### [ex07: Mutex Lock Fast Path](./mutex-lock-ex07/)
+**Khái niệm:** Fast path của mutex_lock (optimistic acquisition)  
+**Demo:** Atomic compare-exchange với acquire semantics  
+**File:** [mutex-lock-ex07/README.md](./mutex-lock-ex07/README.md)
+
+### [ex08: Mutex Lock Slow Path](./mutex-lock-slow-ex08/)
+**Khái niệm:** Slow path của mutex_lock (sleeping và wait queue)  
+**Demo:** Quản lý wait queue, luồng sleep và được đánh thức  
+**File:** [mutex-lock-slow-ex08/README.md](./mutex-lock-slow-ex08/README.md)
+
+### [ex09: Mutex Unlock](./mutex-unlock-ex09/)
+**Khái niệm:** Unlock mutex (fast và slow paths)  
+**Demo:** Fast path atomic clear, slow path wake waiters, WAITERS flag  
+**File:** [mutex-unlock-ex09/README.md](./mutex-unlock-ex09/README.md)
+
+### [ex10: Memory Ordering và RCU](./memory-ordering-rcu-ex10/)
+**Khái niệm:** Memory barriers và RCU synchronization  
+**Demo:** Compiler barriers, memory barriers (rmb/wmb/mb), RCU list operations  
+**File:** [memory-ordering-rcu-ex10/README.md](./memory-ordering-rcu-ex10/README.md)
+
+## Tài Liệu Tham Khảo
+
+- **Lý thuyết:** `smp-lecture.html` - Bài giảng đầy đủ về SMP synchronization
+- **Kế hoạch:** `smp-audit.html` - Audit plan với 10 ví dụ (VD 01-10)
+
+Mỗi ví dụ có phần "Tài Liệu Tham Khảo" trỏ đến phần tương ứng trong bài giảng.
+
+## Cấu Trúc Mỗi Ví Dụ
+
+Mỗi thư mục ví dụ chứa đúng 3 files:
+
+```
+example-name-exXX/
+├── example_name.c    # Mã nguồn C minh họa khái niệm
+├── Makefile          # Build script (make, make clean, make test)
+└── README.md         # Giải thích chi tiết (Tiếng Việt)
+```
+
+## Biên Dịch và Chạy
+
+### Biên Dịch Một Ví Dụ
 
 ```bash
-# Cài đặt pthread library (thường đã có sẵn)
-sudo apt install libc6-dev
-
-# Cài đặt numactl để test NUMA
-sudo apt install numactl
-
-# Kiểm tra số lượng CPU
-nproc
-lscpu
+cd race-condition-ex01/
+make                  # Biên dịch
+./race_condition      # Chạy demo
+make clean            # Dọn dẹp
 ```
 
-## Biên Dịch
+### Biên Dịch Tất Cả (từ thư mục smp-programming/)
 
 ```bash
-# Compile với pthread
-gcc -o program program.c -pthread
+# Biên dịch tất cả 10 ví dụ
+for dir in *-ex*/; do
+    cd "$dir"
+    make
+    cd ..
+done
 
-# Compile với tối ưu
-gcc -O2 -o program program.c -pthread
-
-# Compile tất cả
-make all
+# Chạy tất cả
+for dir in *-ex*/; do
+    cd "$dir"
+    echo "=== Running $(basename $dir) ==="
+    make test 2>/dev/null || ./*[!.]  # Chạy executable
+    cd ..
+done
 ```
 
-## Cấu Trúc Thread Cơ Bản
+## Lộ Trình Học Tập Đề Xuất
 
-```c
-#include <pthread.h>
-#include <stdio.h>
+### Nhóm 1: Cơ Bản (ex01-ex02)
+1. **ex01** - Hiểu race condition là gì
+2. **ex02** - Học cách sửa bằng atomic operations
 
-void *thread_function(void *arg) {
-    // Thread code here
-    printf("Thread running\n");
-    return NULL;
-}
+### Nhóm 2: Locks (ex03-ex05)
+3. **ex03** - Interrupt disabling (đồng bộ đơn giản)
+4. **ex04** - Spin lock cơ bản (busy-wait)
+5. **ex05** - Spin lock tối ưu (giảm cache thrashing)
 
-int main() {
-    pthread_t thread;
-    
-    // Tạo thread
-    pthread_create(&thread, NULL, thread_function, NULL);
-    
-    // Đợi thread kết thúc
-    pthread_join(thread, NULL);
-    
-    return 0;
-}
-```
+### Nhóm 3: Nâng Cao (ex06-ex10)
+6. **ex06** - Preemption counter (theo dõi context)
+7. **ex07** - Mutex fast path (acquire nhanh)
+8. **ex08** - Mutex slow path (sleep khi contention)
+9. **ex09** - Mutex unlock (wake waiters)
+10. **ex10** - Memory ordering và RCU (lock-free)
 
-## Đồng Bộ Hóa
+## Yêu Cầu Hệ Thống
 
-### Mutex (Mutual Exclusion)
-
-```c
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-
-pthread_mutex_lock(&mutex);
-// Critical section
-pthread_mutex_unlock(&mutex);
-```
-
-### Semaphore
-
-```c
-#include <semaphore.h>
-
-sem_t semaphore;
-sem_init(&semaphore, 0, 1);
-
-sem_wait(&semaphore);
-// Critical section
-sem_post(&semaphore);
-```
-
-### Condition Variable
-
-```c
-pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-
-// Wait
-pthread_mutex_lock(&mutex);
-pthread_cond_wait(&cond, &mutex);
-pthread_mutex_unlock(&mutex);
-
-// Signal
-pthread_cond_signal(&cond);
-```
-
-## CPU Affinity
-
-```c
-#define _GNU_SOURCE
-#include <sched.h>
-
-cpu_set_t cpuset;
-CPU_ZERO(&cpuset);
-CPU_SET(0, &cpuset);  // Gán vào CPU 0
-
-pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
-```
-
-## Các Vấn Đề Thường Gặp
-
-### 1. Race Condition
-Nhiều thread truy cập dữ liệu chung mà không đồng bộ hóa.
-
-**Giải pháp:** Sử dụng mutex, semaphore hoặc atomic operations.
-
-### 2. Deadlock
-Hai hoặc nhiều thread đợi lẫn nhau.
-
-**Giải pháp:** 
-- Luôn lock theo thứ tự nhất định
-- Sử dụng trylock
-- Timeout
-
-### 3. False Sharing
-Nhiều thread truy cập dữ liệu trên cùng cache line.
-
-**Giải pháp:** Padding để tách cache lines.
-
-### 4. Thread Starvation
-Thread không được cấp phát CPU.
-
-**Giải pháp:** Điều chỉnh priority và scheduling policy.
-
-## Tối Ưu Hiệu Năng
-
-1. **Giảm contention:** Ít lock hơn, lock ngắn hơn
-2. **Locality:** Dữ liệu thread-local, NUMA awareness
-3. **Load balancing:** Phân phối công việc đều
-4. **Lock-free algorithms:** Atomic operations
-5. **Thread pool:** Tái sử dụng threads
-
-## Công Cụ Debug
+- **Compiler:** GCC với hỗ trợ C11 (`-std=c11`)
+- **Libraries:** pthread (libc6-dev)
+- **Platform:** Linux (x86-64 recommended)
 
 ```bash
-# Kiểm tra thread đang chạy
-ps -eLf | grep program_name
+# Kiểm tra GCC
+gcc --version
 
-# Monitor CPU usage
-top -H
-htop
+# Cài đặt dependencies (nếu cần)
+sudo apt install build-essential
+```
 
-# Valgrind helgrind (race condition)
-valgrind --tool=helgrind ./program
+## Ghi Chú
 
-# Valgrind DRD (thread errors)
-valgrind --tool=drd ./program
+- Tất cả code là **user-space simulation** của các kernel primitives
+- Không thể tắt ngắt thật trong user-space → dùng signal masking
+- Không có kernel scheduler → dùng pthread và sleep/yield
+- Mục đích: **Hiểu concepts**, không phải triển khai production
 
-# perf (performance analysis)
-perf record ./program
+## Lỗi Thường Gặp
+
+**Segmentation fault:** Kiểm tra race condition hoặc double-free (đặc biệt ex01)  
+**Deadlock:** Xem ex08, đảm bảo wait queue được quản lý đúng  
+**Counter không khớp:** Contention cao, kiểm tra atomic operations
+
+## Tác Giả & Nguồn
+
+Các ví dụ được tạo dựa trên:
+- Linux kernel source code (`kernel/locking/`)
+- Documentation: `smp-lecture.html` và `smp-audit.html`
+- Kiến trúc: x86-64 assembly và atomic instructions
+
+---
+
+**Bắt đầu từ [ex01: Race Condition](./race-condition-ex01/)** để thấy vấn đề, sau đó học cách sửa qua các ví dụ tiếp theo!
 perf report
 ```
 
