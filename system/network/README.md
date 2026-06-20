@@ -282,6 +282,7 @@ sudo rmmod tcp_steganography
 **✅ AN TOÀN VỚI SSH:**
 
 Module này sử dụng **TCP urgent pointer** thay vì sequence number, nên:
+
 - AN TOÀN với SSH connections (port 22)
 - AN TOÀN với HTTPS (port 443)  
 - AN TOÀN với tất cả TCP-based protocols
@@ -289,6 +290,7 @@ Module này sử dụng **TCP urgent pointer** thay vì sequence number, nên:
 - Có thể test trực tiếp qua SSH
 
 **Tại sao urgent pointer an toàn:**
+
 - Urgent pointer ít được applications sử dụng
 - Không ảnh hưởng đến TCP flow control
 - Không ảnh hưởng đến sequence/acknowledgment numbers
