@@ -1,86 +1,61 @@
 #!/bin/bash
-#
-# test_vfs.sh - Test Virtual Filesystem Module
-# 
-# Script kiểm tra module VFS đơn giản
-# 
-# Chạy: sudo ./test_vfs.sh
+# test_vfs_tutorial.sh - Test simple VFS module
 
 set -e
 
 MODULE="vfs_module"
 MOUNT_PT="/mnt/vfs_demo"
 
-# Kiểm tra quyền root
 if [ "$EUID" -ne 0 ]; then
-    echo "Loi: Script nay can quyen root/sudo"
+    echo "[!] Script này cần root/sudo"
     exit 1
 fi
 
-echo "=== Dọn dẹp trạng thái trước đó ==="
+echo "[*] Clean up previous state..."
 umount "$MOUNT_PT" 2>/dev/null || true
 rmmod "$MODULE" 2>/dev/null || true
 sleep 1
 
-echo ""
-echo "=== Biên dịch module ==="
-make -f Makefile clean
-make -f Makefile
+echo "[*] Build module..."
+make -f Makefile.tutorial clean
+make -f Makefile.tutorial
 
-echo ""
-echo "=== Load module vào kernel ==="
+echo "[*] Load module..."
 insmod "${MODULE}.ko"
 sleep 1
 
-echo ""
-echo "Kiểm tra dmesg (khởi tạo module):"
+echo "[*] Check dmesg (module init)..."
 dmesg | tail -15
 
-echo ""
-echo "=== Tạo mount point ==="
+echo "[*] Create mount point..."
 mkdir -p "$MOUNT_PT"
-echo "Mount point: $MOUNT_PT"
 
-echo ""
-echo "=== Mount filesystem ==="
-mount -t simplefs none "$MOUNT_PT"
+echo "[*] Mount filesystem..."
+mount -t vfs_demo none "$MOUNT_PT"
 sleep 1
 
-echo ""
-echo "Kiểm tra dmesg (mount):"
+echo "[*] Check dmesg (mount)..."
 dmesg | tail -10
 
-echo ""
-echo "=== Liệt kê nội dung thư mục ==="
+echo "[*] List directory..."
 ls -la "$MOUNT_PT"
 
-echo ""
-echo "=== Đọc nội dung file hello ==="
+echo "[*] Read file..."
 cat "$MOUNT_PT/hello"
 
-echo ""
-echo "=== Đọc nội dung file info ==="
-cat "$MOUNT_PT/info"
-
-echo ""
-echo "=== Umount filesystem ==="
+echo "[*] Umount..."
 umount "$MOUNT_PT"
 sleep 1
 
-echo ""
-echo "Kiểm tra dmesg (umount):"
+echo "[*] Check dmesg (umount)..."
 dmesg | tail -10
 
-echo ""
-echo "=== Gỡ bỏ module khỏi kernel ==="
+echo "[*] Unload module..."
 rmmod "$MODULE"
 sleep 1
 
-echo ""
-echo "Kiểm tra dmesg (thoát module):"
+echo "[*] Check dmesg (module exit)..."
 dmesg | tail -10
 
 echo ""
-echo "================================================"
-echo "Test hoàn tất thành công"
-echo "================================================"
+echo "[✓] Test completed successfully!"
