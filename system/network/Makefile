@@ -5,7 +5,6 @@ CFLAGS = -Wall -Wextra -O2 -g
 
 # Kernel modules
 obj-m += loopback_driver.o
-obj-m += http_password_detector.o
 obj-m += skbuff_demo.o
 obj-m += tcp_steganography.o
 

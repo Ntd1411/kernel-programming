@@ -26,22 +26,22 @@ Các module trong phần này đáp ứng yêu cầu từ slide:
 | Slide 9 | Sending flow | loopback_driver.c |
 | Slide 10-11 | NAPI, receiving | loopback_driver.c |
 | Slide 13.1 | Loopback driver | loopback_driver.c |
-| Slide 13.2 | HTTP password detect | http_password_detector.c |
 | Bonus | Steganography | tcp_steganography.c, stego_reader.c |
 
 ## Cấu trúc thư mục
 
 ```
-network-programming/
+network/
 ├── loopback_driver.c           # Kernel: Loopback network driver
-├── http_password_detector.c    # Kernel: HTTP password detector
 ├── skbuff_demo.c               # Kernel: sk_buff demo
 ├── tcp_steganography.c         # Kernel: TCP/UDP steganography
-├── network_interface.c         # User: Network interface tool
 ├── stego_reader.c              # User: Steganography reader
-├── test_steganography.sh       # Script: Auto test
+├── test_steganography.sh       # Script: Auto test steganography
+├── test_loopback.sh            # Script: Test loopback driver
+├── test_skbuff.sh              # Script: Test sk_buff demo
 ├── Makefile                    # Build system
-└── README.md                   # Documentation này
+├── README.md                   # Documentation này
+└── SSH_SAFETY.md               # ⚠️ QUAN TRỌNG: Cảnh báo về SSH connection
 ```
 
 ## Build
@@ -128,84 +128,7 @@ sudo rmmod loopback_driver
 [  123.460] Đã tạo network interface: myloop0
 ```
 
-### 2. http_password_detector.ko
-
-**Mô tả**: HTTP password detector module (Bài tập slide 13.2)
-
-**Chức năng:**
-
-- Sử dụng Netfilter hook để bắt outgoing packets
-- Phân tích HTTP POST request
-- Tìm chuỗi "password=" trong HTTP body
-- Log password ra kernel log
-- Lưu password vào file `/var/log/http_passwords.log`
-
-**Kiến thức demo:**
-
-- Netfilter framework: `nf_register_net_hook()`
-- Hook point: `NF_INET_POST_ROUTING`
-- Phân tích IP header với `ip_hdr()`
-- Phân tích TCP header với `tcp_hdr()`
-- Detect HTTP protocol từ port và content
-- Parse HTTP form data (application/x-www-form-urlencoded)
-- Kernel file I/O: `filp_open()`, `kernel_write()`, `filp_close()`
-
-**Load module:**
-
-```bash
-sudo insmod http_password_detector.ko
-```
-
-**Test với curl:**
-
-```bash
-# Test 1: Simple POST
-curl -X POST -d "username=admin&password=secret123" http://httpbin.org/post
-
-# Test 2: Multiple fields
-curl -X POST -d "user=john&password=mypass456&email=test@example.com" http://example.com
-
-# Test 3: Local server
-python3 -m http.server 8000 &
-curl -X POST -d "password=test123" http://localhost:8000
-```
-
-**Xem kết quả:**
-
-```bash
-# Xem kernel log
-dmesg | grep -i password
-
-# Xem log file realtime
-sudo tail -f /var/log/http_passwords.log
-
-# Đọc toàn bộ log file
-sudo cat /var/log/http_passwords.log
-```
-
-**Unload module:**
-
-```bash
-sudo rmmod http_password_detector
-```
-
-**Output mẫu:**
-
-```
-[  234.567] HTTP Password Detected!
-[  234.568]   Source: 192.168.1.100:54321
-[  234.569]   Dest: 93.184.216.34:80
-[  234.570]   Password: secret123
-```
-
-**Lưu ý an toàn:**
-
-- Module này chỉ dùng cho mục đích học tập
-- Không sử dụng trong môi trường production
-- Có thể vi phạm privacy nếu dùng sai mục đích
-- Chỉ bắt HTTP (không bắt HTTPS vì đã mã hóa)
-
-### 3. skbuff_demo.ko
+### 2. skbuff_demo.ko
 
 **Mô tả**: Demo sk_buff structure và manipulation (Slide 7-8)
 
@@ -272,7 +195,7 @@ sudo rmmod skbuff_demo
 [  345.689]   truesize: 1664 bytes
 ```
 
-### 4. tcp_steganography.ko
+### 3. tcp_steganography.ko
 
 **Mô tả**: TCP/UDP packet steganography module (Ẩn tin trong gói tin)
 
@@ -375,7 +298,7 @@ Module này sử dụng **TCP urgent pointer** thay vì sequence number, nên:
 
 ## User-space Programs
 
-### 1. network_interface
+### stego_reader
 
 **Mô tả**: Network interface management tool (Slide 4-5)
 
@@ -1108,7 +1031,6 @@ Repository này đáp ứng ~95% nội dung slide bài giảng:
 - ✓ Slide 8-9: Luồng gói tin, sending flow (loopback_driver.c, skbuff_demo.c)
 - ✓ Slide 10-11: NAPI, receiving flow (loopback_driver.c)
 - ✓ Slide 13.1: Loopback driver (loopback_driver.c)
-- ✓ Slide 13.2: HTTP password detect (http_password_detector.c)
 - ✓ Bonus: Steganography (tcp_steganography.c, stego_reader.c)
 
 ### Kiến thức đạt được
