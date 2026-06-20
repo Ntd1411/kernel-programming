@@ -71,9 +71,10 @@ int main(int argc, char *argv[]) {
                bytes_read);
         printf("Dữ liệu: %s\n", buffer);
         
-        // Tạo response
+        // Tạo response (giới hạn độ dài để tránh truncation)
         char response[BUFFER_SIZE];
-        snprintf(response, BUFFER_SIZE, "Server đã nhận: %s", buffer);
+        int msg_len = (bytes_read < 1000) ? bytes_read : 999;
+        snprintf(response, BUFFER_SIZE, "Server đã nhận: %.*s", msg_len, buffer);
         
         // Gửi response
         ssize_t sent = sendto(sockfd, response, strlen(response), 0,

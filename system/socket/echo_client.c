@@ -67,7 +67,7 @@ int connect_to_server(const char *server_addr, int port) {
     
     if (connect(sockfd, (struct sockaddr*)&server_sockaddr, sizeof(server_sockaddr)) < 0) {
         perror("connect");
-        fprintf(stderr, "Không thể kết nối đến server %s:%d\n", server_ip, port);
+        fprintf(stderr, "Không thể kết nối đến server %s:%d\n", server_addr, port);
         fprintf(stderr, "Hãy đảm bảo server đang chạy!\n");
         close(sockfd);
         return -1;
@@ -166,7 +166,7 @@ void run_echo_client(int sockfd) {
 
 int main(int argc, char *argv[]) {
     int sockfd;
-    char *server_ip;
+    char *server_addr;
     int port;
     
     /* Kiểm tra arguments */
@@ -175,7 +175,7 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
     
-    server_ip = argv[1];
+    server_addr = argv[1];
     port = atoi(argv[2]);
     
     /* Validate port */
@@ -186,11 +186,11 @@ int main(int argc, char *argv[]) {
     }
     
     printf("=== Echo Client ===\n");
-    printf("Server: %s\n", server_ip);
+    printf("Server: %s\n", server_addr);
     printf("Port: %d\n\n", port);
     
     /* Kết nối đến server */
-    sockfd = connect_to_server(server_ip, port);
+    sockfd = connect_to_server(server_addr, port);
     if (sockfd < 0) {
         exit(EXIT_FAILURE);
     }
