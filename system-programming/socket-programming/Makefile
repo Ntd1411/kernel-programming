@@ -78,17 +78,3 @@ help:
 	@echo ""
 	@echo "5. Test với netcat:"
 	@echo "   nc localhost 8080"
-
-help:
-	@echo "Makefile cho Socket Programming Examples"
-	@echo ""
-	@echo "Targets:"
-	@echo "  all         - Build tất cả chương trình"
-	@echo "  tcp_server  - Build TCP server"
-	@echo "  tcp_client  - Build TCP client"
-	@echo "  udp_server  - Build UDP server"
-	@echo "  udp_client  - Build UDP client"
-	@echo "  echo_server - Build multi-threaded echo server"
-	@echo "  clean       - Xóa các file đã build"
-	@echo "  test        - Hiển thị hướng dẫn test"
-	@echo "  help        - Hiển thị help này"
