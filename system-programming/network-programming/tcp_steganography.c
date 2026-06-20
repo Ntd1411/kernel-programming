@@ -26,8 +26,8 @@
 #define MAX_MESSAGE_LEN 256
 #define MAGIC_MARKER 0xAB  /* Đánh dấu packet có hidden message */
 
-static char hidden_message[MAX_MESSAGE_LEN] = "HIDDEN_DATA";
-static int message_len = 11;
+static char hidden_message[MAX_MESSAGE_LEN] = "HELLOWORLD";
+static int message_len = 10;
 static int message_index = 0;
 static struct nf_hook_ops nfho_out;
 
@@ -78,38 +78,35 @@ static int decode_ip_id_to_byte(unsigned short ip_id, unsigned char *data_byte)
 }
 
 /*
- * Ẩn message vào TCP sequence number
- * Chỉ thay đổi 8 bits thấp nhất (ít ảnh hưởng đến TCP)
+ * Ẩn message vào TCP urgent pointer
+ * URG pointer ít được dùng, an toàn với SSH và các protocol khác
  */
-static void hide_in_tcp_seq(struct tcphdr *tcph, unsigned char data_byte)
+static void hide_in_tcp_urg(struct tcphdr *tcph, unsigned char data_byte)
 {
-    u32 seq = ntohl(tcph->seq);
+    u16 urg_ptr;
     
-    /* Giữ nguyên 24 bits cao, thay đổi 8 bits thấp */
-    seq = (seq & 0xFFFFFF00) | data_byte;
+    /* Encode: magic marker (8 bits) + data (8 bits) */
+    urg_ptr = (MAGIC_MARKER << 8) | data_byte;
     
-    tcph->seq = htonl(seq);
-    
-    /* Đánh dấu bằng cách set reserved bits */
-    tcph->res1 = (MAGIC_MARKER >> 4) & 0x0F;
+    tcph->urg_ptr = htons(urg_ptr);
+    /* Không set URG flag để tránh ảnh hưởng */
 }
 
 /*
- * Giải mã message từ TCP sequence number
+ * Giải mã message từ TCP urgent pointer
  */
-static int extract_from_tcp_seq(struct tcphdr *tcph, unsigned char *data_byte)
+static int extract_from_tcp_urg(struct tcphdr *tcph, unsigned char *data_byte)
 {
-    u32 seq;
+    u16 urg_ptr = ntohs(tcph->urg_ptr);
     unsigned char marker;
     
-    /* Kiểm tra magic marker trong reserved bits */
-    marker = tcph->res1 & 0x0F;
-    if (marker != ((MAGIC_MARKER >> 4) & 0x0F)) {
+    /* Kiểm tra magic marker */
+    marker = (urg_ptr >> 8) & 0xFF;
+    if (marker != MAGIC_MARKER) {
         return 0;
     }
     
-    seq = ntohl(tcph->seq);
-    *data_byte = seq & 0xFF;
+    *data_byte = urg_ptr & 0xFF;
     
     return 1;
 }
@@ -193,12 +190,12 @@ static unsigned int hook_outgoing(void *priv,
     encode_byte_to_ip_id(current_char, &iph->id);
     recalculate_ip_checksum(iph);
     
-    /* Phương pháp 2: Ẩn trong TCP sequence number */
+    /* Phương pháp 2: Ẩn trong TCP urgent pointer */
     if (iph->protocol == IPPROTO_TCP) {
         tcph = tcp_hdr(skb);
         if (tcph) {
-            hide_in_tcp_seq(tcph, current_char);
-            printk(KERN_DEBUG "Stego: Ẩn '%c' (0x%02x) vào TCP packet, index=%d\n",
+            hide_in_tcp_urg(tcph, current_char);
+            printk(KERN_DEBUG "Stego: Ẩn '%c' (0x%02x) vào TCP URG pointer, index=%d\n",
                    (current_char >= 32 && current_char < 127) ? current_char : '.',
                    current_char, message_index);
         }
@@ -253,9 +250,9 @@ static int __init stego_init(void)
     
     printk(KERN_INFO "Netfilter hook đã được đăng ký\n");
     printk(KERN_INFO "Module sẵn sàng. Đang ẩn message vào TCP/UDP packets...\n");
-    printk(KERN_INFO "\nPhương pháp ẩn tin:\n");
+    printk(KERN_INFO "\nPhương pháp ẩn tin (AN TOÀN với SSH/HTTPS):\n");
     printk(KERN_INFO "  1. IP ID field (tất cả TCP/UDP)\n");
-    printk(KERN_INFO "  2. TCP sequence number (chỉ TCP)\n");
+    printk(KERN_INFO "  2. TCP urgent pointer (chỉ TCP, không ảnh hưởng connection)\n");
     printk(KERN_INFO "  3. UDP checksum (chỉ UDP)\n");
     printk(KERN_INFO "\nSử dụng stego_reader để đọc message đã ẩn\n");
     

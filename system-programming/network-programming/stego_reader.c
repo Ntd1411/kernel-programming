@@ -64,21 +64,20 @@ static int decode_ip_id(unsigned short ip_id, unsigned char *data_byte)
 }
 
 /*
- * Giải mã TCP sequence number
+ * Giải mã TCP urgent pointer
  */
-static int decode_tcp_seq(struct tcphdr *tcph, unsigned char *data_byte)
+static int decode_tcp_urg(struct tcphdr *tcph, unsigned char *data_byte)
 {
+    u_int16_t urg_ptr = ntohs(tcph->th_urp);
     unsigned char marker;
-    u_int32_t seq;
     
-    /* Kiểm tra magic marker trong reserved bits */
-    marker = (tcph->th_x2 >> 4) & 0x0F;  /* res1 trong tcphdr */
-    if (marker != ((MAGIC_MARKER >> 4) & 0x0F)) {
+    /* Kiểm tra magic marker */
+    marker = (urg_ptr >> 8) & 0xFF;
+    if (marker != MAGIC_MARKER) {
         return 0;
     }
     
-    seq = ntohl(tcph->th_seq);
-    *data_byte = seq & 0xFF;
+    *data_byte = urg_ptr & 0xFF;
     
     return 1;
 }
@@ -193,14 +192,14 @@ static void process_packet(unsigned char *buffer, int size)
     if (iph->protocol == IPPROTO_TCP) {
         tcph = (struct tcphdr *)(buffer + sizeof(struct ethhdr) + (iph->ihl * 4));
         
-        if (decode_tcp_seq(tcph, &decoded_byte)) {
+        if (decode_tcp_urg(tcph, &decoded_byte)) {
             add_byte_to_message(&tcp_seq_message, decoded_byte);
-            printf("[%d] TCP SEQ: Tìm thấy byte 0x%02X '%c'\n",
+            printf("[%d] TCP URG: Tìm thấy byte 0x%02X '%c'\n",
                    packet_count, decoded_byte,
                    (decoded_byte >= 32 && decoded_byte < 127) ? decoded_byte : '.');
             
             if (tcp_seq_message.length % 20 == 0) {
-                print_message("TCP SEQ", &tcp_seq_message);
+                print_message("TCP URG", &tcp_seq_message);
             }
         }
     }
@@ -238,9 +237,9 @@ static void print_final_stats(void)
     }
     
     if (tcp_seq_message.length > 0) {
-        print_message("TCP SEQ (FINAL)", &tcp_seq_message);
+        print_message("TCP URG (FINAL)", &tcp_seq_message);
     } else {
-        printf("\nTCP SEQ: Không tìm thấy hidden message\n");
+        printf("\nTCP URG: Không tìm thấy hidden message\n");
     }
     
     if (udp_checksum_message.length > 0) {

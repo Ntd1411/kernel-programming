@@ -281,8 +281,8 @@ sudo rmmod skbuff_demo
 - Sử dụng Netfilter hook ở POST_ROUTING (trước khi đến driver)
 - Ẩn message vào 3 vị trí trong packet:
   1. IP ID field (16 bits) - Cho cả TCP và UDP
-  2. TCP sequence number (8 bits thấp) - Chỉ TCP
-  3. UDP checksum (8 bits thấp) - Chỉ UDP
+  2. TCP urgent pointer (16 bits) - Chỉ TCP, AN TOÀN với SSH
+  3. UDP checksum (16 bits) - Chỉ UDP
 - Đánh dấu packets có hidden message bằng magic marker (0xAB)
 - Hỗ trợ custom message qua module parameter
 - Tự động encode và tính lại checksum
@@ -293,7 +293,8 @@ sudo rmmod skbuff_demo
 - Netfilter hook ở NF_INET_POST_ROUTING
 - Encode/decode data vào packet headers
 - IP checksum recalculation
-- TCP sequence number manipulation
+- TCP urgent pointer manipulation (an toàn hơn sequence number)
+- UDP checksum manipulation
 - Module parameters với `module_param_string()`
 - Steganography techniques trong network
 
@@ -354,6 +355,23 @@ sudo rmmod tcp_steganography
 [  457.123] Stego: Ẩn 'E' (0x45) vào TCP packet, index=1
 [  457.245] Stego: Ẩn 'C' (0x43) vào TCP packet, index=2
 ```
+
+**✅ AN TOÀN VỚI SSH:**
+
+Module này sử dụng **TCP urgent pointer** thay vì sequence number, nên:
+- AN TOÀN với SSH connections (port 22)
+- AN TOÀN với HTTPS (port 443)  
+- AN TOÀN với tất cả TCP-based protocols
+- KHÔNG phá vỡ existing connections
+- Có thể test trực tiếp qua SSH
+
+**Tại sao urgent pointer an toàn:**
+- Urgent pointer ít được applications sử dụng
+- Không ảnh hưởng đến TCP flow control
+- Không ảnh hưởng đến sequence/acknowledgment numbers
+- Hầu hết protocols ignore urgent pointer
+
+**Khuyến nghị:** Vẫn nên test local/VM lần đầu để làm quen với module.
 
 ## User-space Programs
 
