@@ -1,478 +1,476 @@
 /*
- * vfs_module.c - Virtual Filesystem Module đơn giản
- * 
- * Module tạo một filesystem ảo trong kernel space cho mục đích học tập.
- * Filesystem này chỉ tồn tại trong bộ nhớ, không lưu trữ dữ liệu vật lý.
- * 
- * Các kiến thức VFS được sử dụng:
- * 
- * 1. Superblock (struct super_block, super_operations):
- *    - Đại diện cho một filesystem instance đã mount
- *    - Quản lý metadata: magic number, block size, root dentry
- *    - Cung cấp các operations: statfs, drop_inode, evict_inode, put_super
- * 
- * 2. Inode (struct inode, inode_operations):
- *    - Đại diện cho một file/directory trong filesystem
- *    - Chứa metadata: số hiệu inode, quyền truy cập, timestamps, link count
- *    - Phân biệt giữa directory inode (có .lookup) và file inode (không có .lookup)
- *    - Sử dụng iget_locked() với số hiệu inode cố định để tránh race condition
- * 
- * 3. Dentry (struct dentry):
- *    - Đại diện cho một đường dẫn trong cây thư mục
- *    - Liên kết tên file với inode tương ứng
- *    - Được tạo bởi d_make_root() (root) và d_add() (file thường)
- * 
- * 4. File Operations (struct file_operations):
- *    - Định nghĩa các thao tác trên file: read, write, seek
- *    - Directory operations: iterate_shared để liệt kê nội dung thư mục
- * 
- * 5. Filesystem Registration:
- *    - Đăng ký filesystem type với kernel qua register_filesystem()
- *    - Cung cấp hàm mount để tạo superblock instance
- *    - Sử dụng mount_nodev() vì không cần block device
- * 
- * 6. Inode Lifecycle:
- *    - drop_inode: quyết định khi nào giải phóng inode
- *    - evict_inode: dọn dẹp dữ liệu khi xóa inode
- *    - set_nlink(): quản lý reference count của inode
- * 
- * Lưu ý kỹ thuật quan trọng:
- * - Phải dùng iget_locked() với số hiệu inode cố định ngay từ đầu
- * - KHÔNG được thay đổi i_ino sau khi inode đã được insert vào superblock
- * - File thường cần inode_operations riêng, không dùng simple_dir_inode_operations
- * 
- * Biên dịch: make
- * Load module: sudo insmod vfs_module.ko
+ * simplefs.c - Simple Virtual Filesystem Kernel Module (FIXED)
+ *
+ * Cac thay doi so voi ban goc:
+ *  1. inode->i_op cho file thuong (S_IFREG) duoc doi tu
+ *     simple_dir_inode_operations (sai, danh cho directory) sang
+ *     mot struct inode_operations RIENG, RONG cho file thuong.
+ *     -> Day la nguyen nhan chinh gay treo khi umount: VFS xu ly
+ *        sai kieu inode trong qua trinh shrink_dcache_for_umount.
+ *  2. Them simplefs_drop_inode vao super_operations (truoc khai bao
+ *     nhung khong duoc gan vao struct).
+ *  3. Them log chi tiet o iput/evict de de debug.
+ *  4. Dam bao set_nlink(inode, 1) duoc goi ro rang cho file thuong
+ *     (khong dua vao gia tri mac dinh cua iget_locked).
+ *
+ * Build: make
+ * Load: sudo insmod simplefs.ko
  * Mount: sudo mount -t simplefs none /mnt/simplefs
  * Umount: sudo umount /mnt/simplefs
- * Unload: sudo rmmod vfs_module
+ * Unload: sudo rmmod simplefs
  */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/fs.h>
-#include <linux/pagemap.h>
-#include <linux/highmem.h>
 #include <linux/time.h>
 #include <linux/init.h>
 #include <linux/string.h>
-#include <linux/backing-dev.h>
-#include <linux/sched.h>
-#include <linux/parser.h>
-#include <linux/magic.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/mnt_idmapping.h>
 #include <linux/statfs.h>
+#include <linux/pagemap.h>
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Kernel Linux Learning");
-MODULE_DESCRIPTION("Virtual filesystem module don gian");
-MODULE_VERSION("1.1");
+MODULE_AUTHOR("VFS Learning");
+MODULE_DESCRIPTION("Simple VFS Module - Learning 4 Structs");
+MODULE_VERSION("2.0");
 
-#define SIMPLEFS_MAGIC 0x19920342
-#define SIMPLEFS_DEFAULT_MODE 0755
+#define vfs_module_MAGIC 0xDEADBEEF
 
-/* Nội dung các file ảo trong filesystem */
-static const char hello_content[] = "Hello from SimplFS!\nThis is a virtual file in kernel space.\n";
-static const char info_content[] = "SimplFS Information:\n"
-                                   "- Type: Virtual Filesystem\n"
-                                   "- Mode: Read-only\n"
-                                   "- Storage: Memory only\n"
-                                   "- Purpose: Learning and demonstration\n";
+/* ============================================================================
+ * ĐỊNH NGHĨA INODE (metadata file/directory)
+ * ============================================================================
+ */
 
-/* Số hiệu inode cố định */
+/* Định danh inode */
 enum {
-    SIMPLEFS_ROOT_INO = 1,
-    SIMPLEFS_HELLO_INO = 2,
-    SIMPLEFS_INFO_INO = 3,
+    ROOT_INO = 1,
+    HELLO_INO = 2,
 };
 
-/* Khai báo trước các hàm và cấu trúc */
-static struct inode *simplefs_get_inode(struct super_block *sb,
-                                        const struct inode *dir,
-                                        umode_t mode,
-                                        unsigned long ino,
-                                        dev_t dev);
+/* Nội dung file ảo */
+static const char hello_content[] = "Hello from VFS Demo!\nThis file lives in kernel memory.\n";
 
-static const struct inode_operations simplefs_dir_inode_operations;
-static const struct inode_operations simplefs_file_inode_operations;
-static const struct file_operations simplefs_file_operations;
-static const struct super_operations simplefs_super_ops;
+/* ============================================================================
+ * INTERFACE: file_operations - các thao tác trên file handle (struct file)
+ * ============================================================================
+ */
 
-/* Hàm đọc dữ liệu từ file ảo */
-static ssize_t simplefs_read(struct file *filp, char __user *buf,
+/**
+ * vfs_module_read() - Đọc dữ liệu từ file
+ *
+ * Được gọi khi user space làm: read(fd, buf, count)
+ * Tham số:
+ *   filp  - file handle (struct file) mà user nắm giữ
+ *   buf   - user space buffer (unsafe, cần copy_to_user)
+ *   len   - số byte muốn đọc
+ *   ppos  - vị trí hiện tại trong file (offset)
+ *
+ * Trả về: số byte đã đọc, hoặc lỗi < 0
+ */
+static ssize_t vfs_module_read(struct file *filp, char __user *buf,
                             size_t len, loff_t *ppos)
 {
     struct inode *inode = file_inode(filp);
-    const char *content = NULL;
-    size_t content_len = 0;
+    const char *content;
+    size_t content_len;
     size_t to_copy;
 
-    printk(KERN_INFO "SimpleFS: Doc file inode %lu, offset %lld, len %zu\n",
-           inode->i_ino, *ppos, len);
+    pr_info("vfs_module: READ inode#%lu, offset=%lld, len=%zu\n",
+            inode->i_ino, *ppos, len);
 
-    switch (inode->i_ino) {
-        case SIMPLEFS_HELLO_INO:
-            content = hello_content;
-            content_len = sizeof(hello_content) - 1;
-            break;
-        case SIMPLEFS_INFO_INO:
-            content = info_content;
-            content_len = sizeof(info_content) - 1;
-            break;
-        default:
-            return -EINVAL;
+    /* Tìm nội dung file dựa vào inode number */
+    if (inode->i_ino == HELLO_INO) {
+        content = hello_content;
+        content_len = sizeof(hello_content) - 1; /* trừ null terminator */
+    } else {
+        pr_err("vfs_module: invalid inode %lu for read\n", inode->i_ino);
+        return -EINVAL;
     }
 
+    /* Kiểm tra: đã đọc hết file? */
     if (*ppos >= content_len)
-        return 0;
+        return 0;  /* EOF */
 
+    /* Tính số byte cần copy (không vượt quá: file size - offset) */
     to_copy = min(len, content_len - (size_t)*ppos);
 
+    /* Copy từ kernel space sang user space (an toàn) */
     if (copy_to_user(buf, content + *ppos, to_copy))
-        return -EFAULT;
+        return -EFAULT;  /* lỗi copy_to_user */
 
+    /* Cập nhật offset */
     *ppos += to_copy;
 
-    printk(KERN_INFO "SimpleFS: Da doc %zu bytes tu inode %lu\n", to_copy, inode->i_ino);
+    pr_info("vfs_module: READ returned %zu bytes\n", to_copy);
 
     return to_copy;
 }
 
-/* File operations cho file thường */
-static const struct file_operations simplefs_file_operations = {
-    .read = simplefs_read,
-    .llseek = generic_file_llseek,
-};
-
-/* Inode operations cho file thường - struct rỗng, file thường không cần .lookup */
-static const struct inode_operations simplefs_file_inode_operations = {
-};
-
-/* Hàm lấy inode cho file thường */
-static struct inode *simplefs_iget(struct super_block *sb, unsigned long ino)
+/**
+ * vfs_module_open() - Mở file (optional, gọi khi open())
+ *
+ * Trong ví dụ này, không cần làm gì đặc biệt.
+ */
+static int vfs_module_open(struct inode *inode, struct file *filp)
 {
-    struct inode *inode;
-
-    inode = iget_locked(sb, ino);
-    if (!inode)
-        return ERR_PTR(-ENOMEM);
-
-    if (!(inode->i_state & I_NEW))
-        return inode;
-
-    inode_init_owner(&nop_mnt_idmap, inode, NULL, S_IFREG | 0444);
-    simple_inode_init_ts(inode);
-
-    /* Sử dụng inode operations riêng cho file thường, không phải directory ops */
-    inode->i_op = &simplefs_file_inode_operations;
-    inode->i_fop = &simplefs_file_operations;
-
-    /* Đặt nlink rõ ràng, không dựa vào giá trị mặc định */
-    set_nlink(inode, 1);
-
-    unlock_new_inode(inode);
-
-    printk(KERN_INFO "SimpleFS: Tao inode %lu (nlink=%u)\n", ino, inode->i_nlink);
-
-    return inode;
+    pr_info("vfs_module: OPEN inode#%lu\n", inode->i_ino);
+    return 0;
 }
 
-/* Hàm lookup để tìm file trong thư mục */
-static struct dentry *simplefs_lookup(struct inode *dir, struct dentry *dentry,
+/**
+ * vfs_module_release() - Đóng file (optional, gọi khi close())
+ *
+ * Dùng để dọn dẹp nếu có resource được allocate ở open().
+ */
+static int vfs_module_release(struct inode *inode, struct file *filp)
+{
+    pr_info("vfs_module: CLOSE inode#%lu\n", inode->i_ino);
+    return 0;
+}
+
+/* Struct file_operations - định nghĩa các thao tác có thể làm trên file handle */
+static const struct file_operations vfs_module_file_ops = {
+    .read    = vfs_module_read,
+    .open    = vfs_module_open,
+    .release = vfs_module_release,
+    .llseek  = generic_file_llseek,  /* Cho phép seek (lseek syscall) */
+};
+
+/* ============================================================================
+ * INTERFACE: inode_operations - các thao tác liên quan inode (lookup, etc)
+ * ============================================================================
+ */
+
+/**
+ * vfs_module_lookup() - Tìm file bằng tên trong directory
+ *
+ * Được gọi khi user space làm: open("/mnt/vfs_module/hello")
+ * VFS parse path: "/" → lookup trong root inode
+ *                 "hello" → lookup trong root, tìm dentry "hello"
+ *
+ * Nếu dentry chưa có trong cache → gọi inode->i_op->lookup
+ *
+ * Tham số:
+ *   dir     - inode của directory cha (root inode trong trường hợp này)
+ *   dentry  - dentry chưa được link với inode nào (chúa là "negative dentry")
+ *   flags   - cờ lookup (bỏ qua ở đây)
+ *
+ * Trả về: NULL nếu tìm được và gọi d_add(), hoặc ERR_PTR() nếu lỗi
+ */
+static struct dentry *vfs_module_lookup(struct inode *dir, struct dentry *dentry,
                                      unsigned int flags)
 {
     struct inode *inode = NULL;
 
-    printk(KERN_INFO "SimpleFS: Lookup '%s' trong thu muc\n", dentry->d_name.name);
+    pr_info("vfs_module: LOOKUP '%s' in directory inode#%lu\n",
+            dentry->d_name.name, dir->i_ino);
 
-    if (dir->i_ino != SIMPLEFS_ROOT_INO)
+    /* Chỉ hỗ trợ lookup trong root directory */
+    if (dir->i_ino != ROOT_INO) {
+        pr_info("vfs_module: lookup not in root, return ENOENT\n");
         return ERR_PTR(-ENOENT);
-
-    if (strcmp(dentry->d_name.name, "hello") == 0) {
-        inode = simplefs_iget(dir->i_sb, SIMPLEFS_HELLO_INO);
-    } else if (strcmp(dentry->d_name.name, "info") == 0) {
-        inode = simplefs_iget(dir->i_sb, SIMPLEFS_INFO_INO);
     }
 
-    if (IS_ERR(inode))
-        return ERR_CAST(inode);
+    /* Kiểm tra tên file */
+    if (strcmp(dentry->d_name.name, "hello") == 0) {
+        /* Nếu tìm được, tạo inode struct cho file "hello" */
+        inode = new_inode(dir->i_sb);
+        if (!inode)
+            return ERR_PTR(-ENOMEM);
 
+        /* Khởi tạo inode: số hiệu, quyền, loại file, operations */
+        inode->i_ino = HELLO_INO;
+        inode->i_mode = S_IFREG | 0444;  /* Regular file, read-only */
+        inode->i_uid = GLOBAL_ROOT_UID;
+        inode->i_gid = GLOBAL_ROOT_GID;
+        set_nlink(inode, 1);
+
+        /* Set thời gian tạo */
+        simple_inode_init_ts(inode);
+
+        /* Gán operations cho inode */
+        inode->i_op = &simple_dir_inode_operations;  /* Không cần lookup nữa */
+        inode->i_fop = &vfs_module_file_ops;           /* Cho phép read */
+
+        /* Set kích thước file (VFS dùng để kiểm tra seek) */
+        i_size_write(inode, sizeof(hello_content) - 1);
+
+        pr_info("vfs_module: Created inode#%lu for 'hello'\n", inode->i_ino);
+    } else {
+        pr_info("vfs_module: file '%s' not found\n", dentry->d_name.name);
+        /* File không tồn tại → negative dentry (inode = NULL) */
+    }
+
+    /* Link dentry với inode (nếu tìm được) hoặc tạo negative dentry (NULL) */
     d_add(dentry, inode);
-    return NULL;
+
+    return NULL;  /* Trả về NULL có nghĩa: thành công, dentry đã được link */
 }
 
-/* Hàm iterate để liệt kê nội dung thư mục */
-static int simplefs_iterate(struct file *file, struct dir_context *ctx)
+/**
+ * vfs_module_iterate_shared() - Liệt kê các file trong directory (ls)
+ *
+ * Được gọi khi user space làm: ls /mnt/vfs_module hoặc readdir()
+ *
+ * Tham số:
+ *   file  - file handle của directory
+ *   ctx   - context để emit các entry (dir_emit helper)
+ *
+ * Trả về: 0 = thành công, <0 = lỗi
+ */
+static int vfs_module_iterate_shared(struct file *file, struct dir_context *ctx)
 {
     struct inode *inode = file_inode(file);
 
-    printk(KERN_INFO "SimpleFS: Iterate thu muc inode %lu, pos %lld\n",
-           inode->i_ino, ctx->pos);
+    pr_info("vfs_module: ITERATE directory inode#%lu, pos=%lld\n",
+            inode->i_ino, ctx->pos);
 
-    if (inode->i_ino != SIMPLEFS_ROOT_INO)
+    /* Chỉ hỗ trợ iterate trên root directory */
+    if (inode->i_ino != ROOT_INO)
         return -ENOENT;
 
+    /* Emit . và .. (parent directory) - helper VFS */
     if (!dir_emit_dots(file, ctx))
         return 0;
 
+    /* Emit entry "hello" nếu chưa emit */
     if (ctx->pos == 2) {
-        if (!dir_emit(ctx, "hello", 5, SIMPLEFS_HELLO_INO, DT_REG))
-            return 0;
-        ctx->pos++;
-    }
-
-    if (ctx->pos == 3) {
-        if (!dir_emit(ctx, "info", 4, SIMPLEFS_INFO_INO, DT_REG))
-            return 0;
+        dir_emit(ctx, "hello", 5, HELLO_INO, DT_REG);
         ctx->pos++;
     }
 
     return 0;
 }
 
-/* File operations cho thư mục */
-static const struct file_operations simplefs_dir_operations = {
-    .iterate_shared = simplefs_iterate,
+/* Struct inode_operations - định nghĩa các thao tác liên quan inode */
+static const struct inode_operations vfs_module_dir_inode_ops = {
+    .lookup = vfs_module_lookup,
+};
+
+/* Struct file_operations cho directory (dùng trong iterate) */
+static const struct file_operations vfs_module_dir_ops = {
+    .iterate_shared = vfs_module_iterate_shared,
     .llseek = default_llseek,
 };
 
-/* Inode operations cho thư mục */
-static const struct inode_operations simplefs_dir_inode_operations = {
-    .lookup = simplefs_lookup,
-};
-
-/*
- * Hàm tạo inode với số hiệu cố định
- * 
- * Lưu ý quan trọng về việc tránh treo umount:
- * 
- * Bản gốc dùng new_inode(sb) -> inode được insert vào sb->s_inodes list
- * NGAY LẬP TỨC với i_ino = get_next_ino() (ví dụ 9218). Sau đó caller
- * (simplefs_fill_super) gán lại root_inode->i_ino = 1.
- * 
- * Đổi i_ino SAU KHI inode đã nằm trong các cấu trúc quản lý của superblock
- * là không an toàn: bất kỳ tra cứu/iterate nào dựa trên i_ino (ví dụ trong
- * quá trình shrink_dcache_for_umount, generic_shutdown_super đi qua
- * sb->s_inodes để evict từng inode) có thể không nhất quán, gây vòng lặp
- * hoặc lookup sai khiến umount treo (quan sát thực tế: process umount ở
- * trạng thái R - đang chạy/spin, không phải D - bị block bởi lock).
- * 
- * Cách sửa: KHÔNG dùng get_next_ino() cho các inode có i_ino cố định
- * (root=1, hello=2, info=3). Truyền ino mong muốn vào thẳng trước khi insert,
- * dùng iget_locked() giống cách simplefs_iget() đã làm cho hello/info - tạo
- * một hàm chung dùng lại cho root.
+/* ============================================================================
+ * INTERFACE: super_operations - các thao tác liên quan superblock
+ * ============================================================================
  */
-static struct inode *simplefs_get_inode(struct super_block *sb,
-                                       const struct inode *dir,
-                                       umode_t mode,
-                                       unsigned long ino,
-                                       dev_t dev)
+
+/**
+ * vfs_module_evict_inode() - Gọi khi inode được giải phóng
+ *
+ * VFS gọi hàm này khi count của inode về 0 (không ai nắm giữ nữa)
+ * Dùng để dọn dẹp any custom state gắn vào inode.
+ */
+static void vfs_module_evict_inode(struct inode *inode)
 {
-    struct inode *inode;
+    pr_info("vfs_module: EVICT inode#%lu\n", inode->i_ino);
 
-    if (ino) {
-        /* Inode có số hiệu cố định (root, hello, info): dùng iget_locked
-         * để i_ino đúng NGAY TỪ ĐẦU, tránh đổi sau */
-        inode = iget_locked(sb, ino);
-        if (!inode)
-            return NULL;
-        if (!(inode->i_state & I_NEW))
-            return inode;
-    } else {
-        inode = new_inode(sb);
-        if (!inode)
-            return NULL;
-        inode->i_ino = get_next_ino();
-    }
+    /* Truncate data (nếu có) */
+    truncate_inode_pages_final(&inode->i_data);
 
-    inode_init_owner(&nop_mnt_idmap, inode, dir, mode);
-
-    simple_inode_init_ts(inode);
-
-    switch (mode & S_IFMT) {
-        case S_IFDIR:
-            inode->i_op = &simplefs_dir_inode_operations;
-            inode->i_fop = &simplefs_dir_operations;
-            set_nlink(inode, 2);
-            break;
-        case S_IFREG:
-            /* Cũng dùng inode operations riêng cho file thường tại đây */
-            inode->i_op = &simplefs_file_inode_operations;
-            inode->i_fop = &simplefs_file_operations;
-            set_nlink(inode, 1);
-            break;
-        default:
-            init_special_inode(inode, mode, dev);
-            break;
-    }
-
-    if (ino)
-        unlock_new_inode(inode);
-
-    printk(KERN_INFO "SimpleFS: Tao inode %lu voi mode 0%o (nlink=%u)\n",
-           inode->i_ino, mode, inode->i_nlink);
-
-    return inode;
+    /* Clear inode (cleanup) */
+    clear_inode(inode);
 }
 
-/* Hàm lấy thông tin filesystem */
-static int simplefs_statfs(struct dentry *dentry, struct kstatfs *buf)
+/**
+ * vfs_module_statfs() - Lấy thông tin filesystem (df command)
+ *
+ * Tham số:
+ *   dentry  - dentry của mount point
+ *   buf     - buffer để fill thông tin
+ *
+ * Trả về: 0 = thành công
+ */
+static int vfs_module_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
-    printk(KERN_INFO "SimpleFS: Goi statfs\n");
+    pr_info("vfs_module: STATFS called\n");
 
-    buf->f_type = SIMPLEFS_MAGIC;
+    buf->f_type = vfs_module_MAGIC;
     buf->f_bsize = PAGE_SIZE;
     buf->f_namelen = 255;
-    buf->f_blocks = 0;
+    buf->f_blocks = 0;    /* Filesystem này không có "blocks" thực */
     buf->f_bfree = 0;
     buf->f_bavail = 0;
-    buf->f_files = 3;
+    buf->f_files = 2;     /* Chỉ có 2 inode: root + hello */
     buf->f_ffree = 0;
 
     return 0;
 }
 
-/* Hàm xử lý khi drop inode */
-static int simplefs_drop_inode(struct inode *inode)
-{
-    printk(KERN_INFO "SimpleFS: Drop inode %lu (nlink=%u, count=%u)\n",
-           inode->i_ino, inode->i_nlink, inode->i_count.counter);
-    return generic_drop_inode(inode);
-}
-
-/* Hàm xử lý khi evict inode */
-static void simplefs_evict_inode(struct inode *inode)
-{
-    printk(KERN_INFO "SimpleFS: Evict inode %lu bat dau\n", inode->i_ino);
-    truncate_inode_pages_final(&inode->i_data);
-    clear_inode(inode);
-    printk(KERN_INFO "SimpleFS: Evict inode %lu ket thuc\n", inode->i_ino);
-}
-
-/* Hàm xử lý khi put superblock */
-static void simplefs_put_super(struct super_block *sb)
-{
-    printk(KERN_INFO "SimpleFS: Giai phong superblock\n");
-}
-
-/* Super operations - gán simplefs_drop_inode và put_super vào struct */
-static const struct super_operations simplefs_super_ops = {
-    .statfs = simplefs_statfs,
-    .drop_inode = simplefs_drop_inode,
-    .evict_inode = simplefs_evict_inode,
-    .put_super = simplefs_put_super,
+/* Struct super_operations - định nghĩa các thao tác liên quan superblock */
+static const struct super_operations vfs_module_super_ops = {
+    .evict_inode = vfs_module_evict_inode,
+    .statfs = vfs_module_statfs,
 };
 
-/* Hàm điền thông tin superblock */
-static int simplefs_fill_super(struct super_block *sb, void *data, int silent)
+/* ============================================================================
+ * FILL SUPERBLOCK - Khởi tạo filesystem
+ * ============================================================================
+ */
+
+/**
+ * vfs_module_fill_super() - Gọi lần đầu khi mount filesystem
+ *
+ * Tham số:
+ *   sb    - superblock đã được VFS tạo trước
+ *   data  - mount options từ user space
+ *   silent - có nên in lỗi không
+ *
+ * Trả về: 0 = thành công, <0 = lỗi
+ */
+static int vfs_module_fill_super(struct super_block *sb, void *data, int silent)
 {
     struct inode *root_inode;
     struct dentry *root_dentry;
 
-    printk(KERN_INFO "SimpleFS: Dien thong tin superblock\n");
+    pr_info("vfs_module: FILL_SUPER - initializing filesystem\n");
 
-    sb->s_magic = SIMPLEFS_MAGIC;
-    sb->s_op = &simplefs_super_ops;
-    sb->s_time_gran = 1;
+    /* Cấu hình superblock */
+    sb->s_magic = vfs_module_MAGIC;
+    sb->s_op = &vfs_module_super_ops;
+    sb->s_time_gran = 1;          /* 1 second time granularity */
     sb->s_maxbytes = MAX_LFS_FILESIZE;
     sb->s_blocksize = PAGE_SIZE;
     sb->s_blocksize_bits = PAGE_SHIFT;
 
-    /* Truyền i_ino mong muốn NGAY TỪ ĐẦU, không gán lại sau khi
-     * inode đã nằm trong cấu trúc quản lý của superblock */
-    root_inode = simplefs_get_inode(sb, NULL, S_IFDIR | SIMPLEFS_DEFAULT_MODE,
-                                     SIMPLEFS_ROOT_INO, 0);
+    pr_info("vfs_module: superblock configured (magic=0x%x, blocksize=%lu)\n",
+            vfs_module_MAGIC, PAGE_SIZE);
+
+    /* Tạo root inode */
+    root_inode = new_inode(sb);
     if (!root_inode) {
-        printk(KERN_ALERT "SimpleFS: Khong the tao root inode\n");
+        pr_err("vfs_module: failed to create root inode\n");
         return -ENOMEM;
     }
 
+    /* Khởi tạo root inode: directory, quyền 755 */
+    root_inode->i_ino = ROOT_INO;
+    root_inode->i_mode = S_IFDIR | 0755;
+    root_inode->i_uid = GLOBAL_ROOT_UID;
+    root_inode->i_gid = GLOBAL_ROOT_GID;
+    set_nlink(root_inode, 2);     /* . và .. */
+
+    /* Set thời gian */
+    simple_inode_init_ts(root_inode);
+
+    /* Gán operations cho root inode */
+    root_inode->i_op = &vfs_module_dir_inode_ops;  /* Có lookup */
+    root_inode->i_fop = &vfs_module_dir_ops;       /* Có iterate */
+
+    pr_info("vfs_module: root inode created (ino=%lu, mode=dir)\n",
+            root_inode->i_ino);
+
+    /* Tạo root dentry (liên kết tên "/" ↔ root inode) */
     root_dentry = d_make_root(root_inode);
     if (!root_dentry) {
-        printk(KERN_ALERT "SimpleFS: Khong the tao root dentry\n");
+        pr_err("vfs_module: failed to create root dentry\n");
         iput(root_inode);
         return -ENOMEM;
     }
 
     sb->s_root = root_dentry;
 
-    printk(KERN_INFO "SimpleFS: Khoi tao superblock thanh cong\n");
+    pr_info("vfs_module: root dentry created, filesystem ready\n");
 
     return 0;
 }
 
-/* Hàm mount filesystem */
-static struct dentry *simplefs_mount(struct file_system_type *fs_type,
+/* ============================================================================
+ * MOUNT / UMOUNT
+ * ============================================================================
+ */
+
+/**
+ * vfs_module_mount() - Gọi khi user space làm: mount -t vfs_module none /mnt/...
+ *
+ * VFS gọi hàm này để gọi fill_super().
+ */
+static struct dentry *vfs_module_mount(struct file_system_type *fs_type,
                                     int flags,
                                     const char *dev_name,
                                     void *data)
 {
-    struct dentry *ret;
+    pr_info("vfs_module: MOUNT called (dev_name=%s)\n",
+            dev_name ? dev_name : "(none)");
 
-    printk(KERN_INFO "SimpleFS: Mount filesystem, dev_name=%s\n",
-           dev_name ? dev_name : "none");
-
-    ret = mount_nodev(fs_type, flags, data, simplefs_fill_super);
-
-    if (IS_ERR(ret))
-        printk(KERN_ALERT "SimpleFS: Mount that bai voi loi %ld\n", PTR_ERR(ret));
-    else
-        printk(KERN_INFO "SimpleFS: Mount thanh cong\n");
-
-    return ret;
+    /* mount_nodev: filesystem này không cần backing device thực */
+    return mount_nodev(fs_type, flags, data, vfs_module_fill_super);
 }
 
-/* Hàm kill superblock khi umount */
-static void simplefs_kill_sb(struct super_block *sb)
+/**
+ * vfs_module_kill_sb() - Gọi khi user space làm: umount /mnt/...
+ *
+ * Dọn dẹp superblock, giải phóng dentry cache, inode, v.v.
+ */
+static void vfs_module_kill_sb(struct super_block *sb)
 {
-    printk(KERN_INFO "SimpleFS: Huy superblock bat dau\n");
-    kill_litter_super(sb);
-    printk(KERN_INFO "SimpleFS: Filesystem da unmount thanh cong\n");
+    pr_info("vfs_module: KILL_SB - unmounting filesystem (BEGIN)\n");
+
+    /* kill_anon_super: dùng cho anonymous super_block (không có backing device)
+     * Nó sẽ:
+     *   - gọi generic_shutdown_super() → shrink_dcache_for_umount
+     *   - gọi deactivate_locked_super()
+     *   - dọn dẹp dentry cache, inode hash
+     */
+    kill_anon_super(sb);
+
+    pr_info("vfs_module: KILL_SB - filesystem unmounted (END)\n");
 }
 
-/* Cấu trúc filesystem type */
-static struct file_system_type simplefs_fs_type = {
+/**
+ * file_system_type - Đăng ký filesystem type với kernel
+ */
+static struct file_system_type vfs_module_fs_type = {
     .owner = THIS_MODULE,
-    .name = "simplefs",
-    .mount = simplefs_mount,
-    .kill_sb = simplefs_kill_sb,
-    .fs_flags = 0,
+    .name = "vfs_module",
+    .mount = vfs_module_mount,
+    .kill_sb = vfs_module_kill_sb,
 };
 
-/* Hàm khởi tạo module */
-static int __init simplefs_init(void)
+/* ============================================================================
+ * MODULE INIT / EXIT
+ * ============================================================================
+ */
+
+static int __init vfs_module_init(void)
 {
     int ret;
 
-    printk(KERN_INFO "SimpleFS: Khoi tao module\n");
+    pr_info("vfs_module: ========== MODULE INIT (START) ==========\n");
 
-    ret = register_filesystem(&simplefs_fs_type);
+    /* Đăng ký filesystem type với kernel */
+    ret = register_filesystem(&vfs_module_fs_type);
     if (ret) {
-        printk(KERN_ALERT "SimpleFS: Dang ky filesystem that bai, loi %d\n", ret);
+        pr_err("vfs_module: register_filesystem failed (ret=%d)\n", ret);
         return ret;
     }
 
-    printk(KERN_INFO "SimpleFS: Load module thanh cong\n");
-    printk(KERN_INFO "SimpleFS: Co the mount voi lenh: mount -t simplefs none /mnt/point\n");
+    pr_info("vfs_module: filesystem 'vfs_module' registered\n");
+    pr_info("vfs_module: ========== MODULE INIT (END) ==========\n");
+    pr_info("vfs_module: Usage:\n");
+    pr_info("vfs_module:   mount -t vfs_module none /mnt/vfs_module\n");
+    pr_info("vfs_module:   cat /mnt/vfs_module/hello\n");
+    pr_info("vfs_module:   ls /mnt/vfs_module\n");
+    pr_info("vfs_module:   umount /mnt/vfs_module\n");
 
     return 0;
 }
 
-/* Hàm cleanup module */
-static void __exit simplefs_exit(void)
+static void __exit vfs_module_exit(void)
 {
-    int ret;
+    pr_info("vfs_module: ========== MODULE EXIT (START) ==========\n");
 
-    printk(KERN_INFO "SimpleFS: Gỡ bỏ module\n");
+    unregister_filesystem(&vfs_module_fs_type);
 
-    ret = unregister_filesystem(&simplefs_fs_type);
-    if (ret)
-        printk(KERN_ALERT "SimpleFS: Huy dang ky filesystem that bai, loi %d\n", ret);
-    else
-        printk(KERN_INFO "SimpleFS: Go module thanh cong\n");
+    pr_info("vfs_module: filesystem 'vfs_module' unregistered\n");
+    pr_info("vfs_module: ========== MODULE EXIT (END) ==========\n");
 }
 
-module_init(simplefs_init);
-module_exit(simplefs_exit);
+module_init(vfs_module_init);
+module_exit(vfs_module_exit);

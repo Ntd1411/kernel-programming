@@ -1,10 +1,10 @@
-obj-m += vfs_module_fixed.o
+obj-m += vfs_module.o
 
-KDIR ?= /lib/modules/$(shell uname -r)/build
-PWD := $(shell pwd)
+KDIR := /lib/modules/$(shell uname -r)/build
+PWD  := $(shell pwd)
 
 all:
-	$(MAKE) -C $(KDIR) M=$(PWD) modules
+        make -C $(KDIR) M=$(PWD) modules
 
 clean:
-	$(MAKE) -C $(KDIR) M=$(PWD) clean
+        make -C $(KDIR) M=$(PWD) clean

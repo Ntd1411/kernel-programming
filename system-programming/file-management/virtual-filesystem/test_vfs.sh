@@ -4,7 +4,7 @@
 set -e
 
 MODULE="vfs_module"
-MOUNT_PT="/mnt/vfs_demo"
+MOUNT_PT="/mnt/vfs_test"
 
 if [ "$EUID" -ne 0 ]; then
     echo "[!] Script này cần root/sudo"
@@ -17,8 +17,8 @@ rmmod "$MODULE" 2>/dev/null || true
 sleep 1
 
 echo "[*] Build module..."
-make -f Makefile.tutorial clean
-make -f Makefile.tutorial
+make -f Makefile clean
+make -f Makefile
 
 echo "[*] Load module..."
 insmod "${MODULE}.ko"
@@ -31,7 +31,7 @@ echo "[*] Create mount point..."
 mkdir -p "$MOUNT_PT"
 
 echo "[*] Mount filesystem..."
-mount -t vfs_demo none "$MOUNT_PT"
+mount -t "$MODULE" none "$MOUNT_PT"
 sleep 1
 
 echo "[*] Check dmesg (mount)..."
