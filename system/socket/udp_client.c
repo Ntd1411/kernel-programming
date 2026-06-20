@@ -81,7 +81,7 @@ int main(int argc, char *argv[]) {
         
         // Gửi datagram
         ssize_t sent = sendto(sockfd, buffer, strlen(buffer), 0,
-                             (struct sockaddr*)&server_addr, addr_len);
+                             (struct sockaddr*)&server_sockaddr, addr_len);
         
         if (sent < 0) {
             perror("sendto");
@@ -97,7 +97,7 @@ int main(int argc, char *argv[]) {
         setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
         
         ssize_t bytes_read = recvfrom(sockfd, buffer, BUFFER_SIZE - 1, 0,
-                                      (struct sockaddr*)&server_addr, &addr_len);
+                                      (struct sockaddr*)&server_sockaddr, &addr_len);
         
         if (bytes_read < 0) {
             printf("Không nhận được response từ server\n\n");
