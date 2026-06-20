@@ -46,15 +46,15 @@ fi
 echo ""
 echo "[3] Test với HTTP POST request..."
 echo "  Test 1: Simple password..."
-curl -X POST -d "username=admin&password=secret123" http://httpbin.org/post -m 5 -s > /dev/null 2>&1 &
+curl -X POST -d "username=admin&password=secret123" http://neverssl.com/ -m 5 -s > /dev/null 2>&1 &
 sleep 2
 
 echo "  Test 2: Multiple fields..."
-curl -X POST -d "user=john&password=mypass456&email=test@example.com" http://httpbin.org/post -m 5 -s > /dev/null 2>&1 &
+curl -X POST -d "user=john&password=mypass456&email=test@example.com" http://neverssl.com/ -m 5 -s > /dev/null 2>&1 &
 sleep 2
 
 echo "  Test 3: Complex password..."
-curl -X POST -d "login=admin&password=P@ssw0rd!2024&remember=true" http://httpbin.org/post -m 5 -s > /dev/null 2>&1 &
+curl -X POST -d "login=admin&password=P@ssw0rd!2024&remember=true" http://neverssl.com/ -m 5 -s > /dev/null 2>&1 &
 sleep 2
 
 echo "  Đợi requests hoàn thành..."
