@@ -4,7 +4,7 @@
  * Client kết nối đến echo server và gửi/nhận tin nhắn
  * 
  * Biên dịch: gcc -o echo_client echo_client.c
- * Chạy: ./echo_client <server_ip> <port>
+ * Chạy: ./echo_client <server_ip_or_hostname> <port>
  */
 
 #include <stdio.h>
@@ -14,21 +14,23 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 #include <errno.h>
 
 #define BUFFER_SIZE 1024
 
 void print_usage(const char *prog_name) {
-    fprintf(stderr, "Sử dụng: %s <server_ip> <port>\n", prog_name);
+    fprintf(stderr, "Sử dụng: %s <server_ip_or_hostname> <port>\n", prog_name);
     fprintf(stderr, "\nVí dụ:\n");
     fprintf(stderr, "  %s localhost 8080\n", prog_name);
     fprintf(stderr, "  %s 127.0.0.1 8080\n", prog_name);
-    fprintf(stderr, "  %s 192.168.1.100 9000\n", prog_name);
+    fprintf(stderr, "  %s google.com 80\n", prog_name);
 }
 
-int connect_to_server(const char *server_ip, int port) {
+int connect_to_server(const char *server_addr, int port) {
     int sockfd;
-    struct sockaddr_in server_addr;
+    struct sockaddr_in server_sockaddr;
+    struct hostent *server_host;
     
     /* Tạo TCP socket */
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -40,23 +42,32 @@ int connect_to_server(const char *server_ip, int port) {
     printf("Socket được tạo thành công (fd=%d)\n", sockfd);
     
     /* Cấu hình server address */
-    memset(&server_addr, 0, sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(port);
+    memset(&server_sockaddr, 0, sizeof(server_sockaddr));
+    server_sockaddr.sin_family = AF_INET;
+    server_sockaddr.sin_port = htons(port);
     
-    /* Chuyển đổi IP string sang binary */
-    if (inet_pton(AF_INET, server_ip, &server_addr.sin_addr) <= 0) {
-        fprintf(stderr, "Lỗi: Địa chỉ IP không hợp lệ: %s\n", server_ip);
-        close(sockfd);
-        return -1;
+    /* Thử chuyển đổi IP address trực tiếp */
+    if (inet_pton(AF_INET, server_addr, &server_sockaddr.sin_addr) <= 0) {
+        /* Không phải IP address, thử resolve hostname */
+        printf("Đang resolve hostname: %s\n", server_addr);
+        server_host = gethostbyname(server_addr);
+        
+        if (server_host == NULL) {
+            fprintf(stderr, "Lỗi: Không thể resolve hostname: %s\n", server_addr);
+            close(sockfd);
+            return -1;
+        }
+        
+        memcpy(&server_sockaddr.sin_addr.s_addr, server_host->h_addr, server_host->h_length);
+        printf("Resolved: %s -> %s\n", server_addr, inet_ntoa(server_sockaddr.sin_addr));
     }
     
     /* Kết nối đến server */
-    printf("Đang kết nối đến %s:%d...\n", server_ip, port);
+    printf("Đang kết nối đến %s:%d...\n", server_addr, port);
     
-    if (connect(sockfd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+    if (connect(sockfd, (struct sockaddr*)&server_sockaddr, sizeof(server_sockaddr)) < 0) {
         perror("connect");
-        fprintf(stderr, "Không thể kết nối đến server %s:%d\n", server_ip, port);
+        fprintf(stderr, "Không thể kết nối đến server %s:%d\n", server_addr, port);
         fprintf(stderr, "Hãy đảm bảo server đang chạy!\n");
         close(sockfd);
         return -1;
@@ -155,7 +166,7 @@ void run_echo_client(int sockfd) {
 
 int main(int argc, char *argv[]) {
     int sockfd;
-    char *server_ip;
+    char *server_addr;
     int port;
     
     /* Kiểm tra arguments */
@@ -164,7 +175,7 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
     
-    server_ip = argv[1];
+    server_addr = argv[1];
     port = atoi(argv[2]);
     
     /* Validate port */
@@ -175,11 +186,11 @@ int main(int argc, char *argv[]) {
     }
     
     printf("=== Echo Client ===\n");
-    printf("Server: %s\n", server_ip);
+    printf("Server: %s\n", server_addr);
     printf("Port: %d\n\n", port);
     
     /* Kết nối đến server */
-    sockfd = connect_to_server(server_ip, port);
+    sockfd = connect_to_server(server_addr, port);
     if (sockfd < 0) {
         exit(EXIT_FAILURE);
     }
