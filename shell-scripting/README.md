@@ -427,16 +427,24 @@ Script này sẽ:
 ### Demo - Xem các tính năng chính
 
 ```bash
-# Chạy demo tương tác để xem các tính năng
+# Chạy demo menu-driven để chọn module
 ./demo.sh
 ```
 
-Demo bao gồm:
-- File backup và duplicate detection
-- Time management và timezone conversion
-- Package search và dependency check
-- Scheduled tasks execution
+**Kiến trúc Demo Mới (Modular):**
+- Menu chính để chọn module (0-5)
+- 5 module độc lập (file, time, package, task, advanced)
+- Chạy từng module riêng lẻ hoặc tất cả cùng lúc
 - Tự động cleanup sau khi demo
+
+**Menu Options:**
+- `1` - File Management Demo (backup, duplicates, cleanup)
+- `2` - Time Management Demo (time, zones, timers, stopwatch)
+- `3` - Package Management Demo (search, dependencies, repos)
+- `4` - Task Scheduler Demo (cron, disk, services)
+- `5` - Advanced Workflows (integrated demos)
+
+**Chi tiết:** Xem [DEMO_GUIDE.md](./doc/DEMO_GUIDE.md)
 
 ### Test Chi Tiết
 
