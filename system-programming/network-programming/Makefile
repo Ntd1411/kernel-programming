@@ -10,7 +10,7 @@ obj-m += skbuff_demo.o
 obj-m += tcp_steganography.o
 
 # User-space programs
-USER_TARGETS = network_interface stego_reader
+USER_TARGETS = stego_reader
 
 .PHONY: all modules user clean help test
 
