@@ -24,10 +24,6 @@ modules:
 # Build user-space programs
 user: $(USER_TARGETS)
 
-network_interface: network_interface.c
-	$(CC) $(CFLAGS) -o $@ $<
-	@echo "Build user-space program thành công: $@"
-
 stego_reader: stego_reader.c
 	$(CC) $(CFLAGS) -o $@ $<
 	@echo "Build user-space program thành công: $@"
@@ -57,7 +53,6 @@ help:
 	@echo "  tcp_steganography.ko        - TCP/UDP steganography (ẩn tin trong packets)"
 	@echo ""
 	@echo "User Programs:"
-	@echo "  network_interface           - Network interface management tool"
 	@echo "  stego_reader                - Steganography reader (đọc tin đã ẩn)"
 
 test:
