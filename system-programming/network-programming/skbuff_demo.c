@@ -143,7 +143,7 @@ static void demo_skb_push_pull(void)
  */
 static void demo_skb_clone_copy(void)
 {
-    struct sk_buff *skb, *skb_clone, *skb_copy;
+    struct sk_buff *skb, *skb_cloned, *skb_copied;
     unsigned char *data;
     
     printk(KERN_INFO "\n=== Demo 4: Clone và Copy sk_buff ===\n");
@@ -159,23 +159,23 @@ static void demo_skb_clone_copy(void)
     printk(KERN_INFO "SKB gốc: %p, len=%d\n", skb, skb->len);
     
     /* Clone: Chia sẻ data buffer */
-    skb_clone = skb_clone(skb, GFP_KERNEL);
-    if (skb_clone) {
-        printk(KERN_INFO "SKB clone: %p, len=%d\n", skb_clone, skb_clone->len);
+    skb_cloned = skb_clone(skb, GFP_KERNEL);
+    if (skb_cloned) {
+        printk(KERN_INFO "SKB clone: %p, len=%d\n", skb_cloned, skb_cloned->len);
         printk(KERN_INFO "  Clone chia sẻ data buffer với gốc\n");
         printk(KERN_INFO "  skb->data: %p, clone->data: %p (same)\n", 
-               skb->data, skb_clone->data);
-        kfree_skb(skb_clone);
+               skb->data, skb_cloned->data);
+        kfree_skb(skb_cloned);
     }
     
     /* Copy: Tạo buffer riêng */
-    skb_copy = skb_copy(skb, GFP_KERNEL);
-    if (skb_copy) {
-        printk(KERN_INFO "SKB copy: %p, len=%d\n", skb_copy, skb_copy->len);
+    skb_copied = skb_copy(skb, GFP_KERNEL);
+    if (skb_copied) {
+        printk(KERN_INFO "SKB copy: %p, len=%d\n", skb_copied, skb_copied->len);
         printk(KERN_INFO "  Copy có data buffer riêng\n");
         printk(KERN_INFO "  skb->data: %p, copy->data: %p (different)\n",
-               skb->data, skb_copy->data);
-        kfree_skb(skb_copy);
+               skb->data, skb_copied->data);
+        kfree_skb(skb_copied);
     }
     
     kfree_skb(skb);
@@ -252,8 +252,8 @@ static void demo_skb_packet_analysis(void)
            ntohs(tcph->source), ntohs(tcph->dest));
     
     /* Tính payload length */
-    printk(KERN_INFO "  Payload: %d bytes\n",
-           skb->len - sizeof(struct ethhdr) - sizeof(struct iphdr) - sizeof(struct tcphdr));
+    printk(KERN_INFO "  Payload: %u bytes\n",
+           (unsigned int)(skb->len - sizeof(struct ethhdr) - sizeof(struct iphdr) - sizeof(struct tcphdr)));
     
     kfree_skb(skb);
 }
@@ -275,13 +275,13 @@ static void demo_skb_linear(void)
     skb_put(skb, 100);
     
     printk(KERN_INFO "sk_buff vừa tạo:\n");
-    printk(KERN_INFO "  is_linear: %d\n", skb_is_linear(skb));
+    printk(KERN_INFO "  is_nonlinear: %d\n", skb_is_nonlinear(skb));
     printk(KERN_INFO "  data_len: %d (paged data)\n", skb->data_len);
     printk(KERN_INFO "  len: %d (total)\n", skb->len);
     printk(KERN_INFO "  nr_frags: %d\n", skb_shinfo(skb)->nr_frags);
     
-    printk(KERN_INFO "\nLinear buffer: Tất cả data nằm liên tục trong memory\n");
-    printk(KERN_INFO "Non-linear buffer: Data nằm rải rác (dùng cho large packets)\n");
+    printk(KERN_INFO "\nLinear buffer: is_nonlinear=0, data liên tục trong memory\n");
+    printk(KERN_INFO "Non-linear buffer: is_nonlinear=1, data rải rác (dùng cho large packets)\n");
     
     kfree_skb(skb);
 }
