@@ -70,13 +70,13 @@ void down(semaphore_t *sem)
     
     pthread_mutex_lock(&sem->wait_lock);
     
-    /* Decrement count (might go negative) */
-    atomic_fetch_sub(&sem->count, 1);
-    
-    /* Wait until count becomes positive */
-    while (atomic_load(&sem->count) < 0) {
+    /* Wait until count > 0 (resource available) */
+    while (atomic_load(&sem->count) <= 0) {
         pthread_cond_wait(&sem->wait_cond, &sem->wait_lock);
     }
+    
+    /* Now decrement count to consume the resource */
+    atomic_fetch_sub(&sem->count, 1);
     
     pthread_mutex_unlock(&sem->wait_lock);
 }
