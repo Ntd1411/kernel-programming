@@ -64,7 +64,7 @@ struct rcu_node {
 };
 
 /* RCU protected list head */
-static struct rcu_node *rcu_list_head = NULL;
+static _Atomic(struct rcu_node *) rcu_list_head = NULL;
 static pthread_rwlock_t rcu_lock = PTHREAD_RWLOCK_INITIALIZER;
 
 /*

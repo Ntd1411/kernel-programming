@@ -78,8 +78,14 @@ static void __mutex_unlock_slowpath(mutex_t *lock)
     pthread_mutex_lock(&lock->wait_lock);
     
     if (lock->wait_list != NULL) {
-        /* Get first waiter */
+        /* Get first waiter and remove from list */
         struct mutex_waiter *waiter = lock->wait_list;
+        lock->wait_list = waiter->next;
+        
+        /* Clear WAITERS flag if list is now empty */
+        if (lock->wait_list == NULL) {
+            atomic_fetch_and(&lock->owner, ~MUTEX_FLAG_WAITERS);
+        }
         
         /* Wake it up */
         waiter->woken = 1;
@@ -155,15 +161,7 @@ void mutex_lock(mutex_t *lock)
         pthread_cond_wait(&waiter.cond, &lock->wait_lock);
     }
     
-    /* Acquired! Remove from wait list */
-    if (lock->wait_list == &waiter) {
-        lock->wait_list = waiter.next;
-    } else {
-        struct mutex_waiter *w = lock->wait_list;
-        while (w && w->next != &waiter) w = w->next;
-        if (w) w->next = waiter.next;
-    }
-    
+    /* Acquired! (unlock already removed us from wait list) */
     /* Set ourselves as owner */
     atomic_store_explicit(&lock->owner, curr, memory_order_acquire);
     
