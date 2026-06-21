@@ -171,12 +171,6 @@ static void list_for_each_rcu(void (*callback)(int))
 /*
  * Demo functions
  */
-/* Statistics */
-static atomic_int total_reads = 0;
-static atomic_int reads_during_update = 0;
-static atomic_int writer_active = 0;
-static atomic_int done = 0;
-
 static void print_node(int data)
 {
     printf("%d ", data);
@@ -185,36 +179,27 @@ static void print_node(int data)
 void *reader_thread(void *arg)
 {
     int id = *(int *)arg;
-    int local_reads = 0;
     
-    /* Continuous reading - demonstrating lock-free access */
-    while (!atomic_load(&done)) {
+    /* Read list multiple times to see old and new versions */
+    for (int i = 0; i < 8; i++) {
         rcu_read_lock();
         
-        /* Count reads during updates to show concurrency */
-        int is_updating = atomic_load(&writer_active);
-        if (is_updating) {
-            atomic_fetch_add(&reads_during_update, 1);
-        }
+        printf("[Reader %d] Sees: ", id);
         
-        /* RCU read is lock-free - no blocking! */
+        /* Print actual list contents */
         struct rcu_node *node;
-        int count = 0;
         for (node = rcu_dereference(rcu_list_head); 
              node != NULL; 
              node = rcu_dereference(node->next)) {
-            count++;
+            printf("%d ", node->data);
         }
+        printf("\n");
         
         rcu_read_unlock();
         
-        local_reads++;
-        atomic_fetch_add(&total_reads, 1);
-        
-        usleep(1000);  /* 1ms between reads */
+        usleep(300000);  /* 300ms between reads */
     }
     
-    printf("[Reader %d] Completed %d reads (never blocked!)\n", id, local_reads);
     return NULL;
 }
 
@@ -223,61 +208,16 @@ void *writer_thread(void *arg)
     (void)arg;
     
     sleep(1);
-    
-    /* Update 1: Add node */
-    printf("\n========================================\n");
-    printf("[Writer] Starting UPDATE 1: Adding node 100\n");
-    printf("[Writer] Readers continue WITHOUT BLOCKING...\n");
-    atomic_store(&writer_active, 1);
-    
-    int reads_before = atomic_load(&reads_during_update);
+    printf("\n[Writer] Adding node 100\n\n");
     list_add_rcu(100);
-    sleep(1);
-    int reads_after = atomic_load(&reads_during_update);
     
-    printf("[Writer] UPDATE 1 complete: %d lock-free reads happened during update!\n", 
-           reads_after - reads_before);
-    printf("========================================\n");
-    atomic_store(&writer_active, 0);
-    
-    sleep(1);
-    
-    /* Update 2: Add another node */
-    printf("\n========================================\n");
-    printf("[Writer] Starting UPDATE 2: Adding node 200\n");
-    printf("[Writer] Readers still running lock-free...\n");
-    atomic_store(&writer_active, 1);
-    
-    reads_before = atomic_load(&reads_during_update);
+    sleep(2);
+    printf("\n[Writer] Adding node 200\n\n");
     list_add_rcu(200);
-    sleep(1);
-    reads_after = atomic_load(&reads_during_update);
     
-    printf("[Writer] UPDATE 2 complete: %d more lock-free reads!\n", 
-           reads_after - reads_before);
-    printf("========================================\n");
-    atomic_store(&writer_active, 0);
-    
-    sleep(1);
-    
-    /* Update 3: Delete node - demonstrates grace period */
-    printf("\n========================================\n");
-    printf("[Writer] Starting UPDATE 3: Deleting node 2\n");
-    printf("[Writer] Will wait for grace period (all readers to finish)\n");
-    atomic_store(&writer_active, 1);
-    
-    reads_before = atomic_load(&reads_during_update);
-    list_del_rcu(2);  /* synchronize_rcu() waits for readers inside */
-    reads_after = atomic_load(&reads_during_update);
-    
-    printf("[Writer] UPDATE 3 complete: Grace period ensured safety!\n");
-    printf("[Writer] %d reads happened, old node freed safely\n", 
-           reads_after - reads_before);
-    printf("========================================\n");
-    atomic_store(&writer_active, 0);
-    
-    sleep(1);
-    atomic_store(&done, 1);
+    sleep(2);
+    printf("\n[Writer] Deleting node 2\n\n");
+    list_del_rcu(2);
     
     return NULL;
 }
@@ -302,64 +242,45 @@ int main(void)
     printf("smp_*: SMP versions (same on x86)\n\n");
     
     /* Part 3: RCU demo */
-    printf("Part 3: RCU - Read-Copy-Update\n");
-    printf("===============================\n");
-    printf("KEY ADVANTAGES:\n");
-    printf("  ✓ Readers NEVER block (completely lock-free)\n");
-    printf("  ✓ Readers don't wait for writers\n");
-    printf("  ✓ Writers don't block readers\n");
-    printf("  ✓ Multiple readers run concurrently with writers\n");
-    printf("  ✓ Grace period ensures memory safety\n\n");
+    printf("Part 3: RCU List Operations\n");
+    printf("---------------------------\n");
+    printf("RCU allows lock-free reads while updates happen\n");
+    printf("Key: Readers see consistent snapshots (old OR new, never broken)\n\n");
     
     /* Initialize list */
     list_add_rcu(3);
     list_add_rcu(2);
     list_add_rcu(1);
     
-    printf("Initial list: ");
-    list_for_each_rcu(print_node);
-    printf("\n\n");
+    printf("Initial list: 1 -> 2 -> 3\n\n");
     
-    printf("Starting 4 reader threads (continuous lock-free reading)...\n");
-    printf("Starting 1 writer thread (will make 3 updates)...\n");
-    printf("Watch readers continue during ALL updates!\n");
+    printf("Watch: Readers will see EITHER old OR new list (both valid!)\n");
+    printf("       Some readers see old version, some see new - RCU magic!\n\n");
     
-    /* Create multiple readers and one writer */
-    pthread_t readers[4], writer;
-    int reader_ids[4] = {1, 2, 3, 4};
+    /* Create 3 readers and 1 writer */
+    pthread_t readers[3], writer;
+    int reader_ids[3] = {1, 2, 3};
     
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 3; i++) {
         pthread_create(&readers[i], NULL, reader_thread, &reader_ids[i]);
     }
     pthread_create(&writer, NULL, writer_thread, NULL);
     
     /* Wait for completion */
-    pthread_join(writer, NULL);
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 3; i++) {
         pthread_join(readers[i], NULL);
     }
+    pthread_join(writer, NULL);
     
-    /* Results showing RCU power */
-    printf("\n╔════════════════════════════════════════════════╗\n");
-    printf("║          RCU PERFORMANCE RESULTS               ║\n");
-    printf("╠════════════════════════════════════════════════╣\n");
-    printf("║ Total reads completed: %-23d ║\n", atomic_load(&total_reads));
-    printf("║ Reads during updates:  %-23d ║\n", atomic_load(&reads_during_update));
-    printf("║                                                ║\n");
+    /* Results */
+    printf("\n=== Results ===\n");
+    printf("Notice: Readers saw CONSISTENT snapshots throughout\n");
+    printf("        - Before update: readers see old list\n");
+    printf("        - During update: readers see old OR new (both valid!)\n");
+    printf("        - After update: readers see new list\n");
+    printf("        - NEVER see broken/inconsistent state!\n\n");
     
-    int total = atomic_load(&total_reads);
-    int during = atomic_load(&reads_during_update);
-    if (total > 0) {
-        float percent = 100.0f * during / total;
-        printf("║ %.1f%% of reads happened DURING updates!      ║\n", percent);
-    }
-    printf("║                                                ║\n");
-    printf("║ ✓ Zero reader blocking                         ║\n");
-    printf("║ ✓ Readers ran concurrently with writers       ║\n");
-    printf("║ ✓ Grace period ensured memory safety          ║\n");
-    printf("╚════════════════════════════════════════════════╝\n");
-    
-    printf("\nFinal list: ");
+    printf("Final list: ");
     list_for_each_rcu(print_node);
     printf("\n");
     
@@ -370,11 +291,8 @@ int main(void)
         free(temp);
     }
     
-    printf("\n✓ RCU demonstration complete\n");
-    printf("\nTHIS IS THE POWER OF RCU:\n");
-    printf("  Traditional rwlock: Readers wait for writer's lock\n");
-    printf("  RCU: Readers NEVER wait, even during updates!\n");
-    printf("  Result: Massive read scalability with zero reader overhead\n");
+    printf("\n✓ RCU operations completed successfully\n");
+    printf("\nRCU Power: Readers never block, always see consistent data!\n");
     
     return 0;
 }
