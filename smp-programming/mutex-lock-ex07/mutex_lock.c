@@ -187,7 +187,7 @@ int main(void)
         printf("\n✓ SUCCESS: Mutex correctly protected shared counter\n");
         return 0;
     } else {
-        printf("\n⚠️  ERROR: Counter mismatch\n");
+        printf("\n!! ERROR: Counter mismatch\n");
         return 1;
     }
 }

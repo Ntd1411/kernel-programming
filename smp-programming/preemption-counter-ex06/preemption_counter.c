@@ -225,7 +225,7 @@ int main(void)
         printf("\n✓ SUCCESS: preempt_count restored to 0\n");
         return 0;
     } else {
-        printf("\n⚠️  ERROR: preempt_count not restored (leak detected)\n");
+        printf("\n!!  ERROR: preempt_count not restored (leak detected)\n");
         return 1;
     }
 }

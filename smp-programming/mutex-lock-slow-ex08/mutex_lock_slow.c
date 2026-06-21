@@ -249,7 +249,7 @@ int main(void)
         printf("\n✓ SUCCESS: Mutex slow path correctly handled contention\n");
         return 0;
     } else {
-        printf("\n⚠️  ERROR: Counter mismatch\n");
+        printf("\n!!  ERROR: Counter mismatch\n");
         return 1;
     }
 }

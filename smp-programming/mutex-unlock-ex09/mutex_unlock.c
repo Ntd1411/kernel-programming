@@ -254,7 +254,7 @@ int main(void)
         printf("\n✓ SUCCESS: Mutex unlock correctly handled waiters\n");
         return 0;
     } else {
-        printf("\n⚠️  ERROR: Counter mismatch\n");
+        printf("\n!!  ERROR: Counter mismatch\n");
         return 1;
     }
 }
