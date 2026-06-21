@@ -120,6 +120,11 @@ for example in "${examples[@]}"; do
         fi
     fi
     
+    # Print the output
+    echo -e "${BLUE}Output:${NC}"
+    echo "$output"
+    echo ""
+    
     # Evaluate results based on expected behavior
     test_passed=false
     
