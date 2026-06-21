@@ -1,6 +1,6 @@
 # Lập Trình SMP - Các Ví Dụ Đồng Bộ Hóa Kernel
 
-Bộ sưu tập 10 ví dụ thực hành minh họa các cơ chế đồng bộ hóa trong Linux kernel cho hệ thống Symmetric Multi-Processing (SMP).
+Bộ sưu tập 12 ví dụ thực hành minh họa các cơ chế đồng bộ hóa trong Linux kernel cho hệ thống Symmetric Multi-Processing (SMP).
 
 ## Giới Thiệu
 
@@ -66,10 +66,21 @@ Mỗi ví dụ được thiết kế để minh họa một khái niệm cụ th
 **Demo:** Compiler barriers, memory barriers (rmb/wmb/mb), RCU list operations  
 **File:** [memory-ordering-rcu-ex10/README.md](./memory-ordering-rcu-ex10/README.md)
 
+### [ex11: Semaphore](./semaphore-ex11/)
+**Khái niệm:** Counting semaphore cho phép N threads truy cập đồng thời  
+**Demo:** Printer pool (3 printers cho 6 threads) và producer-consumer  
+**File:** [semaphore-ex11/README.md](./semaphore-ex11/README.md)
+
+### [ex12: Per-CPU Data](./per-cpu-data-ex12/)
+**Khái niệm:** Tối ưu hóa per-CPU để tránh cache line bouncing  
+**Demo:** So sánh performance: per-CPU counters vs shared counter (6-8x speedup)  
+**File:** [per-cpu-data-ex12/README.md](./per-cpu-data-ex12/README.md)
+
 ## Tài Liệu Tham Khảo
 
 - **Lý thuyết:** `smp-lecture.html` - Bài giảng đầy đủ về SMP synchronization
-- **Kế hoạch:** `smp-audit.html` - Audit plan với 10 ví dụ (VD 01-10)
+- **Kế hoạch:** `smp-audit.html` - Audit plan với 10 ví dụ cơ bản (VD 01-10)
+- **Mở rộng:** ex11-ex12 bổ sung semaphore và per-CPU data
 
 Mỗi ví dụ có phần "Tài Liệu Tham Khảo" trỏ đến phần tương ứng trong bài giảng.
 
@@ -98,7 +109,7 @@ make clean            # Dọn dẹp
 ### Biên Dịch Tất Cả (từ thư mục smp-programming/)
 
 ```bash
-# Biên dịch tất cả 10 ví dụ
+# Biên dịch tất cả 12 ví dụ
 for dir in *-ex*/; do
     cd "$dir"
     make
@@ -131,6 +142,10 @@ done
 8. **ex08** - Mutex slow path (sleep khi contention)
 9. **ex09** - Mutex unlock (wake waiters)
 10. **ex10** - Memory ordering và RCU (lock-free)
+
+### Nhóm 4: Mở Rộng (ex11-ex12)
+11. **ex11** - Semaphore (counting, resource pools)
+12. **ex12** - Per-CPU data (tối ưu cache, no contention)
 
 ## Yêu Cầu Hệ Thống
 

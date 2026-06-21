@@ -32,11 +32,13 @@ examples=(
     "mutex-lock-slow-ex08"
     "mutex-unlock-ex09"
     "memory-ordering-rcu-ex10"
+    "semaphore-ex11"
+    "per-cpu-data-ex12"
 )
 
 echo -e "${BLUE}╔════════════════════════════════════════════════════╗${NC}"
 echo -e "${BLUE}║   SMP Programming Examples - Test Runner          ║${NC}"
-echo -e "${BLUE}║   Testing all 10 kernel synchronization examples  ║${NC}"
+echo -e "${BLUE}║   Testing all 12 kernel synchronization examples  ║${NC}"
 echo -e "${BLUE}╚════════════════════════════════════════════════════╝${NC}"
 echo ""
 
