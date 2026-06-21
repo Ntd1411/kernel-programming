@@ -83,13 +83,15 @@ static void __mutex_unlock_slowpath(mutex_t *lock)
         struct mutex_waiter *waiter = lock->wait_list;
         lock->wait_list = waiter->next;
         
-        /* Clear WAITERS flag if list is now empty */
-        if (lock->wait_list == NULL) {
-            atomic_fetch_and(&lock->owner, ~MUTEX_FLAG_WAITERS);
+        /* Direct handoff: transfer ownership to waiter */
+        unsigned long new_owner = waiter->task;
+        
+        /* Preserve WAITERS flag if there are still waiters */
+        if (lock->wait_list != NULL) {
+            new_owner |= MUTEX_FLAG_WAITERS;
         }
         
-        /* Direct handoff: transfer ownership to waiter */
-        atomic_store_explicit(&lock->owner, waiter->task, memory_order_release);
+        atomic_store_explicit(&lock->owner, new_owner, memory_order_release);
         
         /* Wake it up */
         waiter->woken = 1;

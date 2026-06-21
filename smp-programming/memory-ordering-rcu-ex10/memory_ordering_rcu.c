@@ -135,7 +135,8 @@ static void list_add_rcu(int data)
  */
 static void list_del_rcu(int data)
 {
-    struct rcu_node **pp = &rcu_list_head;
+    /* Cast to suppress atomic pointer warning - macros handle atomicity */
+    struct rcu_node **pp = (struct rcu_node **)&rcu_list_head;
     struct rcu_node *entry;
     
     while ((entry = rcu_dereference(*pp)) != NULL) {
