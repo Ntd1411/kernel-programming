@@ -8,6 +8,7 @@
  * Based on kernel implementation from kernel/locking/mutex.c
  */
 
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -71,7 +72,7 @@ static inline int __mutex_unlock_fast(mutex_t *lock)
  * __mutex_unlock_slowpath - Wake up first waiter
  * 
  * Called when there are waiters. Picks first waiter from
- * wait_list and wakes it up.
+ * wait_list and wakes it up with direct ownership handoff.
  */
 static void __mutex_unlock_slowpath(mutex_t *lock)
 {
@@ -87,13 +88,16 @@ static void __mutex_unlock_slowpath(mutex_t *lock)
             atomic_fetch_and(&lock->owner, ~MUTEX_FLAG_WAITERS);
         }
         
+        /* Direct handoff: transfer ownership to waiter */
+        atomic_store_explicit(&lock->owner, waiter->task, memory_order_release);
+        
         /* Wake it up */
         waiter->woken = 1;
         pthread_cond_signal(&waiter->cond);
+    } else {
+        /* No waiters, just clear owner */
+        atomic_store_explicit(&lock->owner, 0, memory_order_release);
     }
-    
-    /* Clear owner */
-    atomic_store_explicit(&lock->owner, 0, memory_order_release);
     
     pthread_mutex_unlock(&lock->wait_lock);
 }
@@ -161,9 +165,7 @@ void mutex_lock(mutex_t *lock)
         pthread_cond_wait(&waiter.cond, &lock->wait_lock);
     }
     
-    /* Acquired! (unlock already removed us from wait list) */
-    /* Set ourselves as owner */
-    atomic_store_explicit(&lock->owner, curr, memory_order_acquire);
+    /* Acquired! (unlock did direct handoff - we already own it) */
     
     pthread_mutex_unlock(&lock->wait_lock);
     pthread_cond_destroy(&waiter.cond);

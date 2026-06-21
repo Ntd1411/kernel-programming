@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -pthread -O2 -std=c11
+CFLAGS = -Wall -Wextra -pthread -O2 -std=gnu11
 TARGET = memory_ordering_rcu
 
 all: $(TARGET)
