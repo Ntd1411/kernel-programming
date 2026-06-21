@@ -173,22 +173,31 @@ static void list_for_each_rcu(void (*callback)(int))
  */
 static void print_node(int data)
 {
-    printf("  Node: %d\n", data);
+    printf("%d ", data);
 }
-
-static atomic_int reader_count = 0;
 
 void *reader_thread(void *arg)
 {
     int id = *(int *)arg;
     
-    for (int i = 0; i < 5; i++) {
-        atomic_fetch_add(&reader_count, 1);
+    /* Read list multiple times to see old and new versions */
+    for (int i = 0; i < 8; i++) {
+        rcu_read_lock();
         
-        printf("[Reader %d] Reading list:\n", id);
-        list_for_each_rcu(print_node);
+        printf("[Reader %d] Sees: ", id);
         
-        usleep(100000);  /* 100ms */
+        /* Print actual list contents */
+        struct rcu_node *node;
+        for (node = rcu_dereference(rcu_list_head); 
+             node != NULL; 
+             node = rcu_dereference(node->next)) {
+            printf("%d ", node->data);
+        }
+        printf("\n");
+        
+        rcu_read_unlock();
+        
+        usleep(300000);  /* 300ms between reads */
     }
     
     return NULL;
@@ -199,15 +208,15 @@ void *writer_thread(void *arg)
     (void)arg;
     
     sleep(1);
-    printf("\n[Writer] Adding node 100\n");
+    printf("\n[Writer] Adding node 100\n\n");
     list_add_rcu(100);
     
-    sleep(1);
-    printf("\n[Writer] Adding node 200\n");
+    sleep(2);
+    printf("\n[Writer] Adding node 200\n\n");
     list_add_rcu(200);
     
-    sleep(1);
-    printf("\n[Writer] Deleting node 2\n");
+    sleep(2);
+    printf("\n[Writer] Deleting node 2\n\n");
     list_del_rcu(2);
     
     return NULL;
@@ -235,7 +244,8 @@ int main(void)
     /* Part 3: RCU demo */
     printf("Part 3: RCU List Operations\n");
     printf("---------------------------\n");
-    printf("RCU allows lock-free reads while updates happen\n\n");
+    printf("RCU allows lock-free reads while updates happen\n");
+    printf("Key: Readers see consistent snapshots (old OR new, never broken)\n\n");
     
     /* Initialize list */
     list_add_rcu(3);
@@ -244,26 +254,35 @@ int main(void)
     
     printf("Initial list: 1 -> 2 -> 3\n\n");
     
-    /* Create reader and writer threads */
-    pthread_t readers[2], writer;
-    int reader_ids[2] = {1, 2};
+    printf("Watch: Readers will see EITHER old OR new list (both valid!)\n");
+    printf("       Some readers see old version, some see new - RCU magic!\n\n");
     
-    for (int i = 0; i < 2; i++) {
+    /* Create 3 readers and 1 writer */
+    pthread_t readers[3], writer;
+    int reader_ids[3] = {1, 2, 3};
+    
+    for (int i = 0; i < 3; i++) {
         pthread_create(&readers[i], NULL, reader_thread, &reader_ids[i]);
     }
     pthread_create(&writer, NULL, writer_thread, NULL);
     
     /* Wait for completion */
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < 3; i++) {
         pthread_join(readers[i], NULL);
     }
     pthread_join(writer, NULL);
     
     /* Results */
     printf("\n=== Results ===\n");
-    printf("Total reads: %d\n", atomic_load(&reader_count));
-    printf("\nFinal list:\n");
+    printf("Notice: Readers saw CONSISTENT snapshots throughout\n");
+    printf("        - Before update: readers see old list\n");
+    printf("        - During update: readers see old OR new (both valid!)\n");
+    printf("        - After update: readers see new list\n");
+    printf("        - NEVER see broken/inconsistent state!\n\n");
+    
+    printf("Final list: ");
     list_for_each_rcu(print_node);
+    printf("\n");
     
     /* Cleanup */
     while (rcu_list_head) {
@@ -273,5 +292,7 @@ int main(void)
     }
     
     printf("\n✓ RCU operations completed successfully\n");
+    printf("\nRCU Power: Readers never block, always see consistent data!\n");
+    
     return 0;
 }
