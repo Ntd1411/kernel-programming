@@ -1,17 +1,5 @@
 /*
- * simplefs.c - Simple Virtual Filesystem Kernel Module (FIXED)
- *
- * Cac thay doi so voi ban goc:
- *  1. inode->i_op cho file thuong (S_IFREG) duoc doi tu
- *     simple_dir_inode_operations (sai, danh cho directory) sang
- *     mot struct inode_operations RIENG, RONG cho file thuong.
- *     -> Day la nguyen nhan chinh gay treo khi umount: VFS xu ly
- *        sai kieu inode trong qua trinh shrink_dcache_for_umount.
- *  2. Them simplefs_drop_inode vao super_operations (truoc khai bao
- *     nhung khong duoc gan vao struct).
- *  3. Them log chi tiet o iput/evict de de debug.
- *  4. Dam bao set_nlink(inode, 1) duoc goi ro rang cho file thuong
- *     (khong dua vao gia tri mac dinh cua iget_locked).
+ * simplefs.c - Simple Virtual Filesystem Kernel Module
  *
  * Build: make
  * Load: sudo insmod simplefs.ko
