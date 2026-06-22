@@ -142,10 +142,9 @@ class KernelLinuxGUI:
         container.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         self.shell_frame.columnconfigure(0, weight=1)
         self.shell_frame.rowconfigure(0, weight=1)
-        container.columnconfigure(0, weight=1)
         
-        # Canvas và scrollbar cho danh sách dài
-        canvas = tk.Canvas(container)
+        # Canvas với scrollbar
+        canvas = tk.Canvas(container, highlightthickness=0)
         scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
         scrollable_frame = ttk.Frame(canvas)
         
@@ -159,6 +158,9 @@ class KernelLinuxGUI:
         
         canvas.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        
+        container.columnconfigure(0, weight=1)
+        container.rowconfigure(0, weight=1)
         
         # Danh sách các module shell
         shell_modules = [
@@ -262,10 +264,9 @@ class KernelLinuxGUI:
         container.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         self.system_frame.columnconfigure(0, weight=1)
         self.system_frame.rowconfigure(0, weight=1)
-        container.columnconfigure(0, weight=1)
         
-        # Canvas và scrollbar
-        canvas = tk.Canvas(container)
+        # Canvas với scrollbar
+        canvas = tk.Canvas(container, highlightthickness=0)
         scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
         scrollable_frame = ttk.Frame(canvas)
         
@@ -279,6 +280,9 @@ class KernelLinuxGUI:
         
         canvas.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        
+        container.columnconfigure(0, weight=1)
+        container.rowconfigure(0, weight=1)
         
         # Danh sách các module system
         system_modules = [
@@ -430,10 +434,9 @@ class KernelLinuxGUI:
         container.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         self.smp_frame.columnconfigure(0, weight=1)
         self.smp_frame.rowconfigure(0, weight=1)
-        container.columnconfigure(0, weight=1)
         
-        # Canvas và scrollbar
-        canvas = tk.Canvas(container)
+        # Canvas với scrollbar
+        canvas = tk.Canvas(container, highlightthickness=0)
         scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
         scrollable_frame = ttk.Frame(canvas)
         
@@ -447,6 +450,9 @@ class KernelLinuxGUI:
         
         canvas.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        
+        container.columnconfigure(0, weight=1)
+        container.rowconfigure(0, weight=1)
         
         # Danh sách các ví dụ SMP
         smp_examples = [
@@ -629,12 +635,13 @@ class KernelLinuxGUI:
         
         self.log_terminal(f"\n{'='*60}\n")
         self.log_terminal(f"Đang compile: {project_path.name}\n")
+        self.log_terminal(f"Thư mục: {project_path}\n")
         self.log_terminal(f"{'='*60}\n\n")
         
-        # Chạy make
+        # Chạy make tại thư mục chứa Makefile
         thread = threading.Thread(
             target=self._run_command,
-            args=(["make"], project_path),
+            args=(["make", "-C", str(project_path)], self.project_root),
             daemon=True
         )
         thread.start()
@@ -646,16 +653,16 @@ class KernelLinuxGUI:
         self.log_terminal(f"{'='*60}\n\n")
         
         system_dir = self.project_root / "system"
-        for module_dir in system_dir.iterdir():
+        for module_dir in sorted(system_dir.iterdir()):
             if module_dir.is_dir() and (module_dir / "Makefile").exists():
                 self.log_terminal(f"Compile {module_dir.name}...\n")
                 thread = threading.Thread(
                     target=self._run_command,
-                    args=(["make"], module_dir),
+                    args=(["make", "-C", str(module_dir)], self.project_root),
                     daemon=True
                 )
                 thread.start()
-                thread.join()  # Chờ hoàn thành trước khi compile module tiếp theo
+                thread.join()
     
     def clean_all_system(self):
         """Clean tất cả các module system"""
@@ -664,12 +671,12 @@ class KernelLinuxGUI:
         self.log_terminal(f"{'='*60}\n\n")
         
         system_dir = self.project_root / "system"
-        for module_dir in system_dir.iterdir():
+        for module_dir in sorted(system_dir.iterdir()):
             if module_dir.is_dir() and (module_dir / "Makefile").exists():
                 self.log_terminal(f"Clean {module_dir.name}...\n")
                 thread = threading.Thread(
                     target=self._run_command,
-                    args=(["make", "clean"], module_dir),
+                    args=(["make", "-C", str(module_dir), "clean"], self.project_root),
                     daemon=True
                 )
                 thread.start()
@@ -687,7 +694,7 @@ class KernelLinuxGUI:
                 self.log_terminal(f"Compile {example_dir.name}...\n")
                 thread = threading.Thread(
                     target=self._run_command,
-                    args=(["make"], example_dir),
+                    args=(["make", "-C", str(example_dir)], self.project_root),
                     daemon=True
                 )
                 thread.start()
@@ -705,7 +712,7 @@ class KernelLinuxGUI:
                 self.log_terminal(f"Clean {example_dir.name}...\n")
                 thread = threading.Thread(
                     target=self._run_command,
-                    args=(["make", "clean"], example_dir),
+                    args=(["make", "-C", str(example_dir), "clean"], self.project_root),
                     daemon=True
                 )
                 thread.start()
