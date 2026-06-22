@@ -51,7 +51,7 @@ class ShellScriptGUI:
         # Title
         title_label = ttk.Label(
             main_container, 
-            text="🐧 Shell Scripting Launcher",
+            text="Shell Scripting Launcher",
             font=("Arial", 18, "bold")
         )
         title_label.grid(row=0, column=0, pady=(0, 10), sticky=tk.W)
@@ -90,6 +90,10 @@ class ShellScriptGUI:
         )
         self.output_text.pack(fill=tk.BOTH, expand=True)
         
+        # Bind Enter key for interactive input
+        self.output_text.bind('<Return>', self.handle_input)
+        self.input_start_mark = None
+        
         # Configure text tags for colored output
         self.output_text.tag_config("stdout", foreground="#4ec9b0")
         self.output_text.tag_config("stderr", foreground="#f48771")
@@ -103,14 +107,14 @@ class ShellScriptGUI:
         
         self.clear_btn = ttk.Button(
             control_frame,
-            text="🗑️ Clear Output",
+            text="Clear Output",
             command=self.clear_output
         )
         self.clear_btn.pack(side=tk.LEFT, padx=5)
         
         self.stop_btn = ttk.Button(
             control_frame,
-            text="⏹️ Stop Execution",
+            text="Stop Execution",
             command=self.stop_execution,
             state=tk.DISABLED
         )
@@ -129,7 +133,7 @@ class ShellScriptGUI:
     def create_demo_tab(self):
         """Tab cho demo scripts"""
         frame = ttk.Frame(self.notebook, padding="10")
-        self.notebook.add(frame, text="📋 Demo")
+        self.notebook.add(frame, text="Demo")
         
         scripts = [
             ("Main Demo (Menu)", "demo.sh", "Chạy menu demo tổng hợp"),
@@ -146,7 +150,7 @@ class ShellScriptGUI:
     def create_file_management_tab(self):
         """Tab cho file management scripts"""
         frame = ttk.Frame(self.notebook, padding="10")
-        self.notebook.add(frame, text="📁 File Management")
+        self.notebook.add(frame, text="File Management")
         
         scripts = [
             ("File Manager", "file-management/file_manager.sh", "Quản lý file và thư mục"),
@@ -160,7 +164,7 @@ class ShellScriptGUI:
     def create_time_management_tab(self):
         """Tab cho time management scripts"""
         frame = ttk.Frame(self.notebook, padding="10")
-        self.notebook.add(frame, text="⏰ Time Management")
+        self.notebook.add(frame, text="Time Management")
         
         scripts = [
             ("Time Tracker", "time-management/time_tracker.sh", "Theo dõi thời gian làm việc"),
@@ -172,7 +176,7 @@ class ShellScriptGUI:
     def create_package_management_tab(self):
         """Tab cho package management scripts"""
         frame = ttk.Frame(self.notebook, padding="10")
-        self.notebook.add(frame, text="📦 Package Management")
+        self.notebook.add(frame, text="Package Management")
         
         scripts = [
             ("Package Manager", "package-management/package_manager.sh", "Quản lý cài đặt/gỡ package"),
@@ -185,7 +189,7 @@ class ShellScriptGUI:
     def create_task_scheduler_tab(self):
         """Tab cho task scheduler scripts"""
         frame = ttk.Frame(self.notebook, padding="10")
-        self.notebook.add(frame, text="⏲️ Task Scheduler")
+        self.notebook.add(frame, text="Task Scheduler")
         
         scripts = [
             ("Cron Manager", "task-scheduler/cron_manager.sh", "Quản lý cron jobs"),
@@ -202,7 +206,7 @@ class ShellScriptGUI:
             
             btn = ttk.Button(
                 btn_frame,
-                text=f"▶️ {name}",
+                text=f"{name}",
                 command=lambda sp=script_path, n=name: self.run_script(sp, n),
                 width=30
             )
@@ -220,13 +224,13 @@ class ShellScriptGUI:
         full_path = self.script_dir / script_path
         
         if not full_path.exists():
-            self.append_output(f"❌ ERROR: Script không tồn tại: {full_path}\n", "error")
+            self.append_output(f"ERROR: Script không tồn tại: {full_path}\n", "error")
             return
             
         self.clear_output()
         self.append_output(f"{'='*80}\n", "info")
-        self.append_output(f"🚀 Đang chạy: {script_name}\n", "info")
-        self.append_output(f"📂 Path: {full_path}\n", "info")
+        self.append_output(f"Đang chạy: {script_name}\n", "info")
+        self.append_output(f"Path: {full_path}\n", "info")
         self.append_output(f"{'='*80}\n\n", "info")
         
         self.is_running = True
@@ -252,6 +256,7 @@ class ShellScriptGUI:
                 ['bash', str(script_path)],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
+                stdin=subprocess.PIPE,
                 text=True,
                 bufsize=1,
                 universal_newlines=True
@@ -276,13 +281,13 @@ class ShellScriptGUI:
             
             self.output_queue.put(('info', f"\n{'='*80}\n"))
             if return_code == 0:
-                self.output_queue.put(('success', f"✅ Script hoàn thành thành công!\n"))
+                self.output_queue.put(('success', f"Script hoàn thành thành công!\n"))
             else:
-                self.output_queue.put(('error', f"❌ Script kết thúc với lỗi (code: {return_code})\n"))
+                self.output_queue.put(('error', f"Script kết thúc với lỗi (code: {return_code})\n"))
             self.output_queue.put(('info', f"{'='*80}\n"))
             
         except Exception as e:
-            self.output_queue.put(('error', f"\n❌ LỖI: {str(e)}\n"))
+            self.output_queue.put(('error', f"\nLỖI: {str(e)}\n"))
             
         finally:
             self.is_running = False
@@ -309,6 +314,24 @@ class ShellScriptGUI:
         finally:
             self.root.after(100, self.check_output_queue)
             
+    def handle_input(self, event):
+        """Xử lý input từ người dùng khi nhấn Enter"""
+        if not self.is_running or not self.current_process:
+            return "break"
+        
+        # Lấy dòng hiện tại
+        current_line = self.output_text.get("insert linestart", "insert lineend")
+        
+        # Gửi input đến process
+        try:
+            if self.current_process and self.current_process.stdin:
+                self.current_process.stdin.write(current_line + "\n")
+                self.current_process.stdin.flush()
+        except Exception as e:
+            self.append_output(f"\nLỗi khi gửi input: {str(e)}\n", "error")
+        
+        return "break"  # Ngăn chặn xử lý mặc định
+            
     def append_output(self, text, tag="stdout"):
         """Thêm text vào output area"""
         self.output_text.insert(tk.END, text, tag)
@@ -323,12 +346,12 @@ class ShellScriptGUI:
         if self.current_process and self.is_running:
             try:
                 self.current_process.terminate()
-                self.append_output("\n⚠️ Script đã bị dừng bởi người dùng.\n", "error")
+                self.append_output("\nScript đã bị dừng bởi người dùng.\n", "error")
                 self.is_running = False
                 self.stop_btn.config(state=tk.DISABLED)
                 self.status_var.set("Stopped")
             except Exception as e:
-                self.append_output(f"\n❌ Lỗi khi dừng script: {str(e)}\n", "error")
+                self.append_output(f"\nLỗi khi dừng script: {str(e)}\n", "error")
 
 
 def main():
