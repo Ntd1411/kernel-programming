@@ -518,3 +518,74 @@ sudo chown $USER:$USER /var/log/scheduled_tasks
 ```
 
 Xem thêm troubleshooting trong **SETUP.md**
+
+## 5. Shell Scripting GUI Launcher (NEW!)
+
+### Python GUI Application - Ubuntu 24.10
+
+**NEW**: GUI launcher được xây dựng bằng Python/tkinter để thực thi các shell scripts một cách thuận tiện.
+
+#### Đặc Điểm
+
+- ✅ Giao diện đồ họa thân thiện
+- ✅ Tổ chức scripts theo 5 danh mục (Demo, File Mgmt, Time Mgmt, Packages, Task Scheduler)
+- ✅ Hiển thị output thời gian thực với màu sắc
+- ✅ Cho phép nhập liệu tương tác (Enter để gửi input)
+- ✅ Dừng script đang chạy với nút "Stop Execution"
+- ✅ Dark theme, dễ nhìn
+
+#### Setup
+
+```bash
+# Cài đặt dependencies (Ubuntu 24.10)
+sudo apt update
+sudo apt install python3-tk
+
+# Setup GUI (one-time)
+cd shell-scripting
+chmod +x setup_gui.sh
+./setup_gui.sh
+```
+
+#### Chạy GUI
+
+```bash
+cd shell-scripting
+
+# Cách 1: Dùng launcher script
+./launch_gui.sh
+
+# Cách 2: Chạy trực tiếp
+python3 gui_launcher.py
+
+# Cách 3: Make executable
+chmod +x gui_launcher.py
+./gui_launcher.py
+```
+
+#### Cách Sử Dụng
+
+1. **Chọn Tab**: Demo, File Management, Time Management, Package Management, Task Scheduler
+2. **Bấm Nút Script**: Chạy script được chọn
+3. **Xem Output**: Real-time results ở phần output area
+4. **Input Tương Tác**: Gõ vào output area, nhấn Enter để gửi input cho script
+5. **Stop Execution**: Nhấn nút để dừng script đang chạy
+
+#### Tài Liệu GUI
+
+- [GUI_README.md](./GUI_README.md) - Hướng dẫn chi tiết
+- [GUI_SUMMARY.md](./GUI_SUMMARY.md) - Tóm tắt kỹ thuật
+- [QUICKSTART.sh](./QUICKSTART.sh) - Quick start guide
+
+#### Requirements
+
+- **OS**: Ubuntu 24.10 (hoặc Linux distros khác)
+- **Python**: 3.8+
+- **GUI**: tkinter (built-in với Python)
+
+#### Files Liên Quan
+
+- `gui_launcher.py` - Main GUI application (342 dòng)
+- `launch_gui.sh` - Quick launcher script
+- `setup_gui.sh` - Setup automation
+- `QUICKSTART.sh` - Interactive quick start

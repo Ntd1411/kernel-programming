@@ -2,52 +2,68 @@
 
 ## Tổng quan
 
-Thư mục này chứa các ví dụ về quản lý tiến trình (process management) trong Linux, bao gồm các API và kỹ thuật quan trọng để làm việc với tiến trình, từ cơ bản đến nâng cao.
+Thư mục này chứa các ví dụ về quản lý tiến trình (process management) trong Linux.
 
-## Cấu trúc Project
-
-```
-process/
-├── fork_example.c       - Ví dụ về fork và tạo tiến trình con
-├── exec_family.c        - Ví dụ về họ hàm exec
-├── signal_handler.c     - Xử lý tín hiệu (signals)
-├── zombie_reaper.c      - Xử lý tiến trình zombie
-├── process_priority.c   - Quản lý độ ưu tiên tiến trình
-└── Makefile            - Build system
-```
+**Bao gồm:**
+- fork() - Tạo tiến trình con
+- exec family - Thay thế process image
+- Xử lý signals (SIGCHLD, SIGTERM, SIGINT)
+- Quản lý zombie processes
+- Process priority & scheduling
 
 ## Build và Run
 
-### Build tất cả chương trình
 ```bash
-make all
+make all              # Build tất cả
+make clean           # Clean object files
+./fork_example       # Chạy fork demo
+./signal_handler     # Chạy signal handling demo
 ```
 
-### Build từng chương trình riêng lẻ
-```bash
-make fork_example
-make exec_family
-make signal_handler
-make zombie_reaper
-make process_priority
+## Các File Chính
+
+| File | Mô Tả |
+|------|-------|
+| `fork_example.c` | Fork và tạo child process |
+| `exec_family.c` | execl, execv, execle, execve |
+| `signal_handler.c` | Signal handling |
+| `zombie_reaper.c` | SIGCHLD và reaping zombies |
+| `process_priority.c` | nice/setpriority |
+
+## Khái Niệm Chính
+
+### Process Lifecycle
+- **Creation**: fork()
+- **Execution**: exec family
+- **Termination**: exit(), wait()
+- **Zombie**: Process finished but parent hasn't waited
+
+### Signals
+- **SIGCHLD**: Khi child process kết thúc
+- **SIGTERM**: Terminate signal
+- **SIGINT**: Interrupt signal (Ctrl+C)
+- **Signal Masking**: sigprocmask, sigaction
+
+### System Calls
+```c
+pid_t fork(void);
+int execve(const char *pathname, char *const argv[], char *const envp[]);
+pid_t wait(int *wstatus);
+pid_t waitpid(pid_t pid, int *wstatus, int options);
+int kill(pid_t pid, int sig);
 ```
 
-### Xem hướng dẫn test
+## Tài Liệu Tham Khảo
+
 ```bash
-make test
+man 2 fork
+man 2 execve
+man 2 wait
+man 2 signal
+man 2 kill
 ```
 
-### Dọn dẹp
-```bash
-make clean
-```
-
-## Kiến thức cơ bản
-
-### 1. Process (Tiến trình) là gì?
-
-Process là một chương trình đang chạy trong hệ thống. Mỗi process có:
-- **PID (Process ID)**: Số định danh duy nhất
+Xem thêm: [system/README.md](../README.md)
 - **PPID (Parent Process ID)**: PID của tiến trình cha
 - **Memory space**: Vùng nhớ riêng (text, data, stack, heap)
 - **File descriptors**: Các file đang mở

@@ -4,29 +4,22 @@ Các ví dụ về lập trình mạng kernel-space trong Linux, dựa trên sli
 
 ## Tổng quan
 
-Phần này tập trung vào kernel network subsystem của Linux, bao gồm:
+Ví dụ về lập trình mạng kernel-space trong Linux.
 
-- Network device driver (loopback driver)
+**Bao gồm:**
+- Network device driver (loopback)
 - sk_buff structure và manipulation
-- Netfilter hooks để intercept packets
-- HTTP protocol analysis trong kernel
+- Netfilter hooks
 - TCP/UDP packet steganography
 
-## Liên quan đến Slide bài giảng
+## Build và Run
 
-Các module trong phần này đáp ứng yêu cầu từ slide:
-
-| Slide | Nội dung | Module/File tương ứng |
-| ------- | ---------- | ---------------------- |
-| Slide 4 | Network interface, IP/MAC | network_interface.c |
-| Slide 5 | Config interface | network_interface.c |
-| Slide 6 | Socket | loopback_driver.c |
-| Slide 7 | struct sk_buff | skbuff_demo.c |
-| Slide 8 | Luồng gói tin | skbuff_demo.c, loopback_driver.c |
-| Slide 9 | Sending flow | loopback_driver.c |
-| Slide 10-11 | NAPI, receiving | loopback_driver.c |
-| Slide 13.1 | Loopback driver | loopback_driver.c |
-| Bonus | Steganography | tcp_steganography.c, stego_reader.c |
+```bash
+make all              # Build tất cả
+make clean           # Clean files
+sudo ./loopback_driver  # Chạy driver (cần sudo)
+bash test_steganography.sh  # Test steganography
+```
 
 ## Cấu trúc thư mục
 
