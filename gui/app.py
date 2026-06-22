@@ -69,6 +69,7 @@ class KernelLinuxGUI:
         """Định nghĩa parameters cho các shell scripts"""
         return {
             "shell-scripting/file-management/backup.sh": {
+                "needs_sudo": True,  # Writes to system directories
                 "params": [
                     {"name": "source_dir", "prompt": "Source directory", "example": "/home/user/Documents", "required": True},
                     {"name": "backup_dir", "prompt": "Backup directory", "example": "/backup", "required": True},
@@ -76,29 +77,34 @@ class KernelLinuxGUI:
                 ]
             },
             "shell-scripting/file-management/find_duplicates.sh": {
+                "needs_sudo": False,
                 "params": [
                     {"name": "directory", "prompt": "Directory to scan", "example": "/home/user/Documents", "required": True},
                     {"name": "action", "prompt": "Action (list/delete/move, optional)", "example": "list", "required": False, "default": "list"}
                 ]
             },
             "shell-scripting/file-management/cleanup.sh": {
+                "needs_sudo": False,
                 "params": [
                     {"name": "days", "prompt": "Days old (optional, use --days flag)", "example": "30", "required": False, "default": ""},
                     {"name": "dry_run", "prompt": "Dry run? (yes/no, optional)", "example": "no", "required": False, "default": "no"}
                 ]
             },
             "shell-scripting/package-management/package_manager.sh": {
+                "needs_sudo": True,  # Package installation requires sudo
                 "params": [
                     {"name": "command", "prompt": "Command (install/remove/search/update/upgrade/list)", "example": "install", "required": True},
                     {"name": "package_name", "prompt": "Package name (required for install/remove/search)", "example": "vim", "required": False, "default": ""}
                 ]
             },
             "shell-scripting/package-management/dependency_checker.sh": {
+                "needs_sudo": False,
                 "params": [
                     {"name": "package_name", "prompt": "Package name to check", "example": "vim", "required": True}
                 ]
             },
             "shell-scripting/time-management/stopwatch.sh": {
+                "needs_sudo": False,
                 "params": [
                     {"name": "command", "prompt": "Command (start/stop/status)", "example": "start", "required": True},
                     {"name": "name", "prompt": "Stopwatch name (optional for start)", "example": "coding-session", "required": False, "default": "stopwatch"}
@@ -833,8 +839,10 @@ class KernelLinuxGUI:
         
         # Collect parameters if script needs them
         script_params = []
+        needs_sudo = False
         rel_path = str(script_path.relative_to(self.project_root))
         if rel_path in self.script_params:
+            needs_sudo = self.script_params[rel_path].get("needs_sudo", False)
             script_params = self.collect_script_parameters(script_path)
             if script_params is None:  # User cancelled
                 self.log_terminal(f"Đã hủy: {script_path.name}\n")
@@ -842,13 +850,19 @@ class KernelLinuxGUI:
         
         self.log_terminal(f"\n{'='*60}\n")
         self.log_terminal(f"Đang chạy: {script_path.name}\n")
+        if needs_sudo:
+            self.log_terminal(f"Quyền: sudo (required)\n")
         self.log_terminal(f"Đường dẫn: {script_path}\n")
         if script_params:
             self.log_terminal(f"Parameters: {' '.join(script_params)}\n")
         self.log_terminal(f"{'='*60}\n\n")
         
-        # Build command with parameters
-        command = ["bash", str(script_path)]
+        # Build command with sudo if needed
+        if needs_sudo:
+            command = ["sudo", "bash", str(script_path)]
+        else:
+            command = ["bash", str(script_path)]
+        
         if script_params:
             command.extend(script_params)
         
