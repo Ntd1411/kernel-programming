@@ -2,6 +2,10 @@
 """
 Ứng dụng GUI quản lý dự án Kernel Linux
 Hỗ trợ chạy các demo và script từ 3 phần: Shell, System, SMP
+
+PHIÊN BẢN ĐÃ SỬA: dùng PTY (pseudo-terminal) thật thay vì subprocess.PIPE
+để hành vi của các tiến trình con (buffering, màu ANSI, sudo, Ctrl+C, ...)
+giống hệt như khi chạy trực tiếp trên terminal thật.
 """
 
 import tkinter as tk
@@ -10,6 +14,10 @@ import subprocess
 import threading
 import os
 import sys
+import signal
+import struct
+import fcntl
+import termios
 from pathlib import Path
 import queue
 import pty
@@ -20,6 +28,20 @@ class KernelLinuxGUI:
         self.root = root
         self.root.title("Kernel Linux")
         self.root.geometry("1400x900")
+        # Cho phép kéo viền cửa sổ để resize (mặc định tkinter đã True,
+        # nhưng đặt rõ ra để chắc chắn WM không bị nhầm là cố định kích thước)
+        self.root.resizable(True, True)
+        
+        # Trạng thái toàn màn hình / phóng to, dùng cho các nút tự vẽ
+        # vì một số window manager (đặc biệt khi chạy qua VNC/X11 forwarding)
+        # không hiển thị nút thu nhỏ/phóng to trên thanh tiêu đề hệ thống.
+        self.is_fullscreen = False
+        self.is_maximized = False
+        self._normal_geometry = "1400x900"
+        
+        # Phím tắt: F11 toàn màn hình, Esc thoát toàn màn hình
+        self.root.bind("<F11>", lambda e: self.toggle_fullscreen())
+        self.root.bind("<Escape>", lambda e: self.exit_fullscreen())
         
         # Đường dẫn gốc dự án
         self.project_root = Path(__file__).parent.parent
@@ -31,6 +53,9 @@ class KernelLinuxGUI:
         self.current_process = None
         self.process_lock = threading.Lock()
         
+        # File descriptor của đầu "master" PTY đang dùng cho process hiện tại
+        self.master_fd = None
+        
         # Thiết lập giao diện
         self.setup_ui()
         
@@ -39,13 +64,49 @@ class KernelLinuxGUI:
         
     def setup_ui(self):
         """Thiết lập giao diện người dùng"""
+        # Thanh điều khiển cửa sổ tự vẽ (vì WM có thể không hiển thị
+        # nút thu nhỏ/phóng to trên thanh tiêu đề hệ thống)
+        window_controls = ttk.Frame(self.root, padding=(5, 2))
+        window_controls.grid(row=0, column=0, sticky=(tk.W, tk.E))
+        
+        ttk.Label(
+            window_controls,
+            text="Kernel Linux",
+            font=("Arial", 9, "bold")
+        ).grid(row=0, column=0, sticky=tk.W)
+        
+        window_controls.columnconfigure(0, weight=1)
+        
+        ttk.Button(
+            window_controls, text="🗕 Thu nhỏ", width=12,
+            command=self.minimize_window
+        ).grid(row=0, column=1, padx=2)
+        
+        self.maximize_btn = ttk.Button(
+            window_controls, text="🗖 Phóng to", width=12,
+            command=self.toggle_maximize
+        )
+        self.maximize_btn.grid(row=0, column=2, padx=2)
+        
+        self.fullscreen_btn = ttk.Button(
+            window_controls, text="⛶ Toàn màn hình", width=15,
+            command=self.toggle_fullscreen
+        )
+        self.fullscreen_btn.grid(row=0, column=3, padx=2)
+        
+        ttk.Separator(self.root, orient=tk.HORIZONTAL).grid(
+            row=1, column=0, sticky=(tk.W, tk.E)
+        )
+        
         # Main container với layout dọc
         main_container = ttk.Frame(self.root, padding="5")
-        main_container.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        main_container.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
         # Cấu hình grid weight
         self.root.columnconfigure(0, weight=1)
-        self.root.rowconfigure(0, weight=1)
+        self.root.rowconfigure(0, weight=0)
+        self.root.rowconfigure(1, weight=0)
+        self.root.rowconfigure(2, weight=1)
         main_container.columnconfigure(0, weight=0)
         main_container.columnconfigure(1, weight=1)
         main_container.rowconfigure(0, weight=1)
@@ -634,12 +695,13 @@ class KernelLinuxGUI:
             return
         
         self.log_terminal(f"\n{'='*60}\n")
-        self.log_terminal(f"Đang compile: {project_path.name}\n")
+        self.log_terminal(f"Đang clean & compile: {project_path.name}\n")
         self.log_terminal(f"Thư mục: {project_path}\n")
         self.log_terminal(f"{'='*60}\n\n")
         
-        # Chạy make tại thư mục chứa Makefile
-        cmd = f"cd '{project_path}' && make"
+        # Chạy make clean trước, sau đó make (dùng ';' để dù clean có
+        # lỗi/không có gì để xóa thì vẫn tiếp tục compile)
+        cmd = f"cd '{project_path}' && make clean; make"
         thread = threading.Thread(
             target=self._run_command,
             args=(["bash", "-c", cmd], self.project_root),
@@ -657,7 +719,7 @@ class KernelLinuxGUI:
         for module_dir in sorted(system_dir.iterdir()):
             if module_dir.is_dir() and (module_dir / "Makefile").exists():
                 self.log_terminal(f"Compile {module_dir.name}...\n")
-                cmd = f"cd '{module_dir}' && make"
+                cmd = f"cd '{module_dir}' && make clean; make"
                 thread = threading.Thread(
                     target=self._run_command,
                     args=(["bash", "-c", cmd], self.project_root),
@@ -695,7 +757,7 @@ class KernelLinuxGUI:
         for example_dir in sorted(smp_dir.iterdir()):
             if example_dir.is_dir() and (example_dir / "Makefile").exists():
                 self.log_terminal(f"Compile {example_dir.name}...\n")
-                cmd = f"cd '{example_dir}' && make"
+                cmd = f"cd '{example_dir}' && make clean; make"
                 thread = threading.Thread(
                     target=self._run_command,
                     args=(["bash", "-c", cmd], self.project_root),
@@ -722,6 +784,57 @@ class KernelLinuxGUI:
                 )
                 thread.start()
                 thread.join()
+    
+    def minimize_window(self):
+        """Thu nhỏ cửa sổ xuống taskbar (không phụ thuộc WM có vẽ nút hay không)"""
+        try:
+            self.root.iconify()
+        except tk.TclError as e:
+            self.log_terminal(f"Không thể thu nhỏ cửa sổ: {e}\n")
+    
+    def toggle_maximize(self):
+        """Phóng to / khôi phục kích thước cửa sổ"""
+        if self.is_fullscreen:
+            # Đang ở fullscreen thì thoát fullscreen trước
+            self.exit_fullscreen()
+        
+        if not self.is_maximized:
+            self._normal_geometry = self.root.geometry()
+            try:
+                # Linux/X11
+                self.root.attributes('-zoomed', True)
+            except tk.TclError:
+                # Windows / fallback: phóng to bằng kích thước màn hình
+                sw = self.root.winfo_screenwidth()
+                sh = self.root.winfo_screenheight()
+                self.root.geometry(f"{sw}x{sh}+0+0")
+            self.is_maximized = True
+            self.maximize_btn.config(text="🗗 Khôi phục")
+        else:
+            try:
+                self.root.attributes('-zoomed', False)
+            except tk.TclError:
+                pass
+            self.root.geometry(self._normal_geometry)
+            self.is_maximized = False
+            self.maximize_btn.config(text="🗖 Phóng to")
+    
+    def toggle_fullscreen(self):
+        """Bật/tắt chế độ toàn màn hình (ẩn cả thanh tiêu đề hệ thống)"""
+        self.is_fullscreen = not self.is_fullscreen
+        if self.is_fullscreen:
+            self._normal_geometry = self.root.geometry()
+        self.root.attributes('-fullscreen', self.is_fullscreen)
+        self.fullscreen_btn.config(
+            text="⛶ Thoát toàn màn hình" if self.is_fullscreen else "⛶ Toàn màn hình"
+        )
+    
+    def exit_fullscreen(self):
+        """Thoát chế độ toàn màn hình (gọi khi nhấn Esc)"""
+        if self.is_fullscreen:
+            self.is_fullscreen = False
+            self.root.attributes('-fullscreen', False)
+            self.fullscreen_btn.config(text="⛶ Toàn màn hình")
     
     def view_file(self, file_path):
         """Xem nội dung file trong cửa sổ mới"""
@@ -767,44 +880,108 @@ class KernelLinuxGUI:
             text_widget.insert('1.0', f"Lỗi khi đọc file: {e}")
             text_widget.config(state='disabled')
     
+    def _set_pty_winsize(self, fd, rows=40, cols=120):
+        """Thiết lập kích thước (rows/cols) cho PTY để chương trình con
+        biết kích thước 'màn hình' của mình, giống terminal thật."""
+        try:
+            winsize = struct.pack('HHHH', rows, cols, 0, 0)
+            fcntl.ioctl(fd, termios.TIOCSWINSZ, winsize)
+        except Exception:
+            # Không nghiêm trọng nếu thất bại trên một số hệ thống
+            pass
+    
     def _run_command(self, cmd, cwd):
-        """Chạy lệnh trong subprocess với output realtime"""
+        """Chạy lệnh trong subprocess với output realtime, dùng PTY thật
+        thay vì pipe thông thường để chương trình con coi đây là tty
+        (giống hệt khi chạy trên terminal thật):
+        - stdout giữ line-buffering, màu ANSI hiển thị đúng
+        - isatty() trả về True
+        - sudo có thể đọc password qua tty
+        - Ctrl+C gửi đúng tới cả process group (job control)
+        """
+        master_fd = None
+        slave_fd = None
+        
         with self.process_lock:
             # Dừng process cũ nếu đang chạy
             if self.current_process and self.current_process.poll() is None:
-                self.current_process.terminate()
+                try:
+                    os.killpg(os.getpgid(self.current_process.pid), signal.SIGTERM)
+                except Exception:
+                    self.current_process.terminate()
                 try:
                     self.current_process.wait(timeout=2)
                 except subprocess.TimeoutExpired:
-                    self.current_process.kill()
+                    try:
+                        os.killpg(os.getpgid(self.current_process.pid), signal.SIGKILL)
+                    except Exception:
+                        self.current_process.kill()
+            
+            # Đóng PTY cũ (nếu còn) trước khi tạo PTY mới
+            if self.master_fd is not None:
+                try:
+                    os.close(self.master_fd)
+                except OSError:
+                    pass
+                self.master_fd = None
             
             try:
-                # Tạo process mới với PTY
+                # Tạo cặp PTY master/slave
+                master_fd, slave_fd = pty.openpty()
+                self._set_pty_winsize(slave_fd)
+                
+                # Tạo process mới, gắn cả stdin/stdout/stderr vào đầu slave
+                # của PTY -> chương trình con thấy một tty thật.
                 self.current_process = subprocess.Popen(
                     cmd,
                     cwd=cwd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    stdin=subprocess.PIPE,
-                    bufsize=0,
-                    universal_newlines=False,
-                    env={**os.environ, 'TERM': 'xterm-256color', 'LANG': 'C.UTF-8', 'LC_ALL': 'C.UTF-8'}
+                    stdin=slave_fd,
+                    stdout=slave_fd,
+                    stderr=slave_fd,
+                    env={**os.environ, 'TERM': 'xterm-256color', 'LANG': 'C.UTF-8', 'LC_ALL': 'C.UTF-8'},
+                    preexec_fn=os.setsid,  # tạo session/process group mới cho job control
+                    close_fds=True,
                 )
             except Exception as e:
+                if master_fd is not None:
+                    os.close(master_fd)
+                if slave_fd is not None:
+                    os.close(slave_fd)
                 self.output_queue.put(f"Lỗi khi chạy lệnh: {e}\n")
                 return
+            
+            # Đầu slave đã được tiến trình con kế thừa, cha có thể đóng lại
+            os.close(slave_fd)
+            self.master_fd = master_fd
         
-        # Đọc output
+        # Đọc output từ đầu master của PTY
         try:
             while True:
-                data = self.current_process.stdout.read(1024)
-                if not data:
-                    break
                 try:
+                    ready, _, _ = select.select([master_fd], [], [], 0.1)
+                except (OSError, ValueError):
+                    break
+                
+                if self.current_process.poll() is not None and not ready:
+                    break
+                
+                if master_fd in ready:
+                    try:
+                        data = os.read(master_fd, 4096)
+                    except OSError:
+                        # PTY đã đóng (process con kết thúc và giải phóng slave cuối)
+                        break
+                    if not data:
+                        break
                     text = data.decode('utf-8', errors='replace')
+                    # PTY ở chế độ "cooked" tự chuyển \n -> \r\n (cờ ONLCR) khi
+                    # echo/xuống dòng, giống terminal thật. Nhưng tkinter.Text
+                    # không phải terminal emulator: nó không hiểu \r là "quay về
+                    # đầu dòng" mà chỉ chèn nó như 1 ký tự thường -> hiện ô vuông
+                    # lạ (font không có glyph cho \r). Nên chuẩn hóa lại trước khi
+                    # đưa vào terminal_output:
+                    text = text.replace('\r\n', '\n').replace('\r', '')
                     self.output_queue.put(text)
-                except Exception:
-                    self.output_queue.put(data.decode('latin-1', errors='replace'))
             
             # Chờ process kết thúc
             return_code = self.current_process.wait()
@@ -816,62 +993,65 @@ class KernelLinuxGUI:
         
         except Exception as e:
             self.output_queue.put(f"\nLỗi khi đọc output: {e}\n")
+        finally:
+            with self.process_lock:
+                if self.master_fd == master_fd:
+                    try:
+                        os.close(master_fd)
+                    except OSError:
+                        pass
+                    self.master_fd = None
     
     def send_input(self, event=None):
-        """Gửi input đến process đang chạy"""
+        """Gửi input đến process đang chạy (ghi trực tiếp vào PTY,
+        giống như gõ trên terminal thật)."""
         input_text = self.terminal_input.get()
         
-        # Nếu input trống, chỉ gửi Enter
-        if not input_text:
-            with self.process_lock:
-                if self.current_process and self.current_process.poll() is None:
-                    try:
-                        self.current_process.stdin.write(b'\n')
-                        self.current_process.stdin.flush()
-                        self.log_terminal("\n")
-                    except Exception as e:
-                        self.log_terminal(f"Lỗi khi gửi Enter: {e}\n")
-                else:
-                    self.log_terminal("Không có process nào đang chạy\n")
-            return
-        
         with self.process_lock:
-            if self.current_process and self.current_process.poll() is None:
+            if self.current_process and self.current_process.poll() is None and self.master_fd is not None:
                 try:
-                    self.current_process.stdin.write((input_text + '\n').encode('utf-8'))
-                    self.current_process.stdin.flush()
-                    self.log_terminal(f"> {input_text}\n")
+                    os.write(self.master_fd, (input_text + '\n').encode('utf-8'))
+                    # PTY ở chế độ "canonical/echo" sẽ tự echo lại ký tự đã gõ,
+                    # nên không cần tự log "> input" như trước nữa.
                     self.terminal_input.delete(0, tk.END)
-                except Exception as e:
+                except OSError as e:
                     self.log_terminal(f"Lỗi khi gửi input: {e}\n")
             else:
                 self.log_terminal("Không có process nào đang chạy\n")
     
     def send_ctrl_c(self, event=None):
-        """Gửi tín hiệu Ctrl+C đến process đang chạy"""
+        """Gửi tín hiệu Ctrl+C đến process đang chạy.
+        Gửi tới cả process group (giống terminal thật khi nhấn Ctrl+C),
+        không chỉ tới một tiến trình đơn lẻ, để các tiến trình con do
+        script/sudo sinh ra cũng nhận được tín hiệu."""
         with self.process_lock:
             if self.current_process and self.current_process.poll() is None:
                 try:
-                    import signal
                     self.log_terminal("\n[Gửi Ctrl+C...]\n")
-                    self.current_process.send_signal(signal.SIGINT)
+                    os.killpg(os.getpgid(self.current_process.pid), signal.SIGINT)
                 except Exception as e:
                     self.log_terminal(f"Lỗi khi gửi Ctrl+C: {e}\n")
             else:
                 self.log_terminal("Không có process nào đang chạy\n")
     
     def stop_process(self):
-        """Dừng process đang chạy"""
+        """Dừng process đang chạy (gửi tín hiệu tới cả process group)."""
         with self.process_lock:
             if self.current_process and self.current_process.poll() is None:
                 self.log_terminal("\n[Đang dừng process...]\n")
-                self.current_process.terminate()
+                try:
+                    os.killpg(os.getpgid(self.current_process.pid), signal.SIGTERM)
+                except Exception:
+                    self.current_process.terminate()
                 
                 try:
                     self.current_process.wait(timeout=2)
                     self.log_terminal("[Process đã dừng]\n")
                 except subprocess.TimeoutExpired:
-                    self.current_process.kill()
+                    try:
+                        os.killpg(os.getpgid(self.current_process.pid), signal.SIGKILL)
+                    except Exception:
+                        self.current_process.kill()
                     self.log_terminal("[Process đã bị kill (force)]\n")
             else:
                 self.log_terminal("Không có process nào đang chạy\n")
@@ -907,5 +1087,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
