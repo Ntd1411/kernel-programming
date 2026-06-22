@@ -46,13 +46,14 @@ class KernelLinuxGUI:
         # Cấu hình grid weight
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
-        main_container.columnconfigure(0, weight=1)
-        main_container.columnconfigure(1, weight=4)
+        main_container.columnconfigure(0, weight=0)
+        main_container.columnconfigure(1, weight=1)
         main_container.rowconfigure(0, weight=1)
         
-        # Panel bên trái cho controls (1/5 width)
-        left_panel = ttk.Frame(main_container, padding="5")
-        left_panel.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        # Panel bên trái cho controls (cố định 250px)
+        left_panel = ttk.Frame(main_container, padding="5", width=250)
+        left_panel.grid(row=0, column=0, sticky=(tk.W, tk.N, tk.S))
+        left_panel.grid_propagate(False)
         left_panel.columnconfigure(0, weight=1)
         left_panel.rowconfigure(0, weight=1)
         
@@ -137,11 +138,27 @@ class KernelLinuxGUI:
     
     def setup_shell_tab(self):
         """Thiết lập tab Shell Scripting"""
-        container = ttk.Frame(self.shell_frame, padding="10")
+        container = ttk.Frame(self.shell_frame, padding="5")
         container.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         self.shell_frame.columnconfigure(0, weight=1)
         self.shell_frame.rowconfigure(0, weight=1)
-        container.columnconfigure(1, weight=1)
+        container.columnconfigure(0, weight=1)
+        
+        # Canvas và scrollbar cho danh sách dài
+        canvas = tk.Canvas(container)
+        scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
         
         # Danh sách các module shell
         shell_modules = [
@@ -153,142 +170,133 @@ class KernelLinuxGUI:
         ]
         
         row = 0
-        ttk.Label(
-            container,
-            text="Các Module Shell Scripting:",
-            font=("Arial", 11, "bold")
-        ).grid(row=row, column=0, columnspan=2, sticky=tk.W, pady=(0, 10))
-        row += 1
-        
         for module_name, module_dir in shell_modules:
-            # Label
-            ttk.Label(container, text=f"{module_name}:").grid(
-                row=row, column=0, sticky=tk.W, pady=5, padx=(0, 10)
-            )
-            
-            # Buttons frame
-            btn_frame = ttk.Frame(container)
-            btn_frame.grid(row=row, column=1, sticky=tk.W, pady=5)
+            # Tiêu đề module
+            ttk.Label(
+                scrollable_frame,
+                text=module_name,
+                font=("Arial", 10, "bold")
+            ).grid(row=row, column=0, sticky=tk.W, pady=(10, 5))
+            row += 1
             
             module_path = self.project_root / "shell-scripting" / module_dir
             
             if module_dir == "demo":
                 # Demo scripts
                 demo_scripts = [
-                    ("Demo File", "demo-file-management.sh"),
-                    ("Demo Package", "demo-package-management.sh"),
-                    ("Demo Task", "demo-task-scheduler.sh"),
-                    ("Demo Time", "demo-time-management.sh"),
-                    ("Demo Advanced", "demo-advanced.sh")
+                    ("File", "demo-file-management.sh"),
+                    ("Package", "demo-package-management.sh"),
+                    ("Task", "demo-task-scheduler.sh"),
+                    ("Time", "demo-time-management.sh"),
+                    ("Advanced", "demo-advanced.sh")
                 ]
                 
-                col = 0
                 for btn_name, script in demo_scripts:
                     script_path = module_path / script
                     if script_path.exists():
                         ttk.Button(
-                            btn_frame,
+                            scrollable_frame,
                             text=btn_name,
-                            command=lambda p=script_path: self.run_shell_script(p)
-                        ).grid(row=0, column=col, padx=2)
-                        col += 1
+                            command=lambda p=script_path: self.run_shell_script(p),
+                            width=20
+                        ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
+                        row += 1
             else:
                 # Liệt kê các script trong thư mục
                 if module_path.exists():
                     scripts = sorted(module_path.glob("*.sh"))
-                    col = 0
-                    for script in scripts[:5]:  # Giới hạn 5 scripts
+                    for script in scripts:
                         ttk.Button(
-                            btn_frame,
+                            scrollable_frame,
                             text=script.stem,
-                            command=lambda p=script: self.run_shell_script(p)
-                        ).grid(row=0, column=col, padx=2)
-                        col += 1
-                    
-                    # Nút xem README
-                    readme = module_path / "README.md"
-                    if readme.exists():
-                        ttk.Button(
-                            btn_frame,
-                            text="README",
-                            command=lambda p=readme: self.view_file(p)
-                        ).grid(row=0, column=col, padx=2)
-            
-            row += 1
+                            command=lambda p=script: self.run_shell_script(p),
+                            width=20
+                        ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
+                        row += 1
         
         # Quick actions
-        ttk.Separator(container, orient=tk.HORIZONTAL).grid(
-            row=row, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10
+        ttk.Separator(scrollable_frame, orient=tk.HORIZONTAL).grid(
+            row=row, column=0, sticky=(tk.W, tk.E), pady=10, padx=5
         )
         row += 1
         
         ttk.Label(
-            container,
-            text="Quick Actions:",
-            font=("Arial", 11, "bold")
-        ).grid(row=row, column=0, columnspan=2, sticky=tk.W, pady=(0, 5))
+            scrollable_frame,
+            text="Quick Actions",
+            font=("Arial", 10, "bold")
+        ).grid(row=row, column=0, sticky=tk.W, pady=(0, 5), padx=5)
         row += 1
         
-        quick_frame = ttk.Frame(container)
-        quick_frame.grid(row=row, column=0, columnspan=2, sticky=tk.W)
-        
         ttk.Button(
-            quick_frame,
-            text="Chạy Demo Tổng Hợp",
+            scrollable_frame,
+            text="Demo Tổng Hợp",
             command=lambda: self.run_shell_script(
                 self.project_root / "shell-scripting" / "demo.sh"
-            )
-        ).grid(row=0, column=0, padx=5)
+            ),
+            width=20
+        ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
+        row += 1
         
         ttk.Button(
-            quick_frame,
+            scrollable_frame,
             text="Quick Start",
             command=lambda: self.run_shell_script(
                 self.project_root / "shell-scripting" / "QUICKSTART.sh"
-            )
-        ).grid(row=0, column=1, padx=5)
+            ),
+            width=20
+        ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
+        row += 1
         
         ttk.Button(
-            quick_frame,
+            scrollable_frame,
             text="Setup GUI",
             command=lambda: self.run_shell_script(
                 self.project_root / "shell-scripting" / "setup_gui.sh"
-            )
-        ).grid(row=0, column=2, padx=5)
+            ),
+            width=20
+        ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
     
     def setup_system_tab(self):
         """Thiết lập tab System Programming"""
-        container = ttk.Frame(self.system_frame, padding="10")
+        container = ttk.Frame(self.system_frame, padding="5")
         container.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         self.system_frame.columnconfigure(0, weight=1)
         self.system_frame.rowconfigure(0, weight=1)
-        container.columnconfigure(1, weight=1)
+        container.columnconfigure(0, weight=1)
+        
+        # Canvas và scrollbar
+        canvas = tk.Canvas(container)
+        scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
         
         # Danh sách các module system
         system_modules = [
-            ("Process Management", "process"),
-            ("File I/O Operations", "file"),
-            ("Socket Programming", "socket"),
-            ("Network Programming", "network")
+            ("Process Management", "process", False, False),
+            ("File I/O Operations", "file", False, True),
+            ("Socket Programming", "socket", False, False),
+            ("Network Programming", "network", True, True)
         ]
         
         row = 0
-        ttk.Label(
-            container,
-            text="Các Module System Programming:",
-            font=("Arial", 11, "bold")
-        ).grid(row=row, column=0, columnspan=2, sticky=tk.W, pady=(0, 10))
-        row += 1
-        
-        for module_name, module_dir in system_modules:
-            # Label
-            ttk.Label(container, text=f"{module_name}:").grid(
-                row=row, column=0, sticky=tk.W, pady=5, padx=(0, 10)
-            )
-            
-            # Buttons frame
-            btn_frame = ttk.Frame(container)
-            btn_frame.grid(row=row, column=1, sticky=tk.W, pady=5)
+        for module_name, module_dir, needs_sudo, has_auto_test in system_modules:
+            # Tiêu đề module
+            ttk.Label(
+                scrollable_frame,
+                text=module_name,
+                font=("Arial", 10, "bold")
+            ).grid(row=row, column=0, sticky=tk.W, pady=(10, 5), padx=5)
+            row += 1
             
             module_path = self.project_root / "system" / module_dir
             
@@ -297,82 +305,148 @@ class KernelLinuxGUI:
                 makefile = module_path / "Makefile"
                 if makefile.exists():
                     ttk.Button(
-                        btn_frame,
+                        scrollable_frame,
                         text="Compile",
-                        command=lambda p=module_path: self.compile_c_project(p)
-                    ).grid(row=0, column=0, padx=2)
+                        command=lambda p=module_path: self.compile_c_project(p),
+                        width=20
+                    ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
+                    row += 1
                 
-                # Liệt kê các file thực thi
-                executables = []
-                for f in module_path.iterdir():
-                    if f.is_file() and os.access(f, os.X_OK) and not f.suffix:
-                        executables.append(f)
+                # Liệt kê các file C
+                c_files = sorted(module_path.glob("*.c"))
+                for c_file in c_files:
+                    exe_name = c_file.stem
+                    exe_path = module_path / exe_name
+                    
+                    if has_auto_test:
+                        # Tìm test script tương ứng
+                        test_script = module_path / f"test_{exe_name}.sh"
+                        if test_script.exists():
+                            if needs_sudo:
+                                ttk.Button(
+                                    scrollable_frame,
+                                    text=f"{exe_name} (sudo)",
+                                    command=lambda p=test_script: self.run_shell_script_sudo(p),
+                                    width=20
+                                ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
+                            else:
+                                ttk.Button(
+                                    scrollable_frame,
+                                    text=exe_name,
+                                    command=lambda p=test_script: self.run_shell_script(p),
+                                    width=20
+                                ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
+                            row += 1
+                        else:
+                            # Không có test script, chạy executable
+                            if needs_sudo:
+                                ttk.Button(
+                                    scrollable_frame,
+                                    text=f"{exe_name} (sudo)",
+                                    command=lambda p=exe_path: self.run_executable_sudo(p),
+                                    width=20
+                                ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
+                            else:
+                                ttk.Button(
+                                    scrollable_frame,
+                                    text=exe_name,
+                                    command=lambda p=exe_path: self.run_executable(p),
+                                    width=20
+                                ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
+                            row += 1
+                    else:
+                        if needs_sudo:
+                            ttk.Button(
+                                scrollable_frame,
+                                text=f"{exe_name} (sudo)",
+                                command=lambda p=exe_path: self.run_executable_sudo(p),
+                                width=20
+                            ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
+                        else:
+                            ttk.Button(
+                                scrollable_frame,
+                                text=exe_name,
+                                command=lambda p=exe_path: self.run_executable(p),
+                                width=20
+                            ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
+                        row += 1
                 
-                col = 1
-                for exe in sorted(executables)[:4]:  # Giới hạn 4 executables
-                    ttk.Button(
-                        btn_frame,
-                        text=f"Chạy {exe.name}",
-                        command=lambda p=exe: self.run_executable(p)
-                    ).grid(row=0, column=col, padx=2)
-                    col += 1
+                # Nút test script đặc biệt (không tương ứng với file C)
+                if module_dir == "file":
+                    # Thêm VFS module
+                    vfs_test = module_path / "vfs_module" / "test_vfs.sh"
+                    if vfs_test.exists():
+                        ttk.Button(
+                            scrollable_frame,
+                            text="VFS Module (sudo)",
+                            command=lambda p=vfs_test: self.run_shell_script_sudo(p),
+                            width=20
+                        ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
+                        row += 1
                 
-                # Nút test script nếu có
-                test_scripts = list(module_path.glob("test_*.sh"))
-                for test_script in test_scripts[:2]:
-                    ttk.Button(
-                        btn_frame,
-                        text=f"Test {test_script.stem}",
-                        command=lambda p=test_script: self.run_shell_script(p)
-                    ).grid(row=0, column=col, padx=2)
-                    col += 1
-                
-                # Nút README
-                readme = module_path / "README.md"
-                if readme.exists():
-                    ttk.Button(
-                        btn_frame,
-                        text="README",
-                        command=lambda p=readme: self.view_file(p)
-                    ).grid(row=0, column=col, padx=2)
-            
-            row += 1
+                # Test scripts không auto (socket)
+                if not has_auto_test:
+                    test_scripts = sorted(module_path.glob("test_*.sh"))
+                    for test_script in test_scripts:
+                        ttk.Button(
+                            scrollable_frame,
+                            text=f"Test: {test_script.stem}",
+                            command=lambda p=test_script: self.run_shell_script(p),
+                            width=20
+                        ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
+                        row += 1
         
         # Quick actions
-        ttk.Separator(container, orient=tk.HORIZONTAL).grid(
-            row=row, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10
+        ttk.Separator(scrollable_frame, orient=tk.HORIZONTAL).grid(
+            row=row, column=0, sticky=(tk.W, tk.E), pady=10, padx=5
         )
         row += 1
         
         ttk.Label(
-            container,
-            text="Quick Actions:",
-            font=("Arial", 11, "bold")
-        ).grid(row=row, column=0, columnspan=2, sticky=tk.W, pady=(0, 5))
+            scrollable_frame,
+            text="Quick Actions",
+            font=("Arial", 10, "bold")
+        ).grid(row=row, column=0, sticky=tk.W, pady=(0, 5), padx=5)
         row += 1
         
-        quick_frame = ttk.Frame(container)
-        quick_frame.grid(row=row, column=0, columnspan=2, sticky=tk.W)
-        
         ttk.Button(
-            quick_frame,
+            scrollable_frame,
             text="Compile Tất Cả",
-            command=lambda: self.compile_all_system()
-        ).grid(row=0, column=0, padx=5)
+            command=lambda: self.compile_all_system(),
+            width=20
+        ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
+        row += 1
         
         ttk.Button(
-            quick_frame,
+            scrollable_frame,
             text="Clean Tất Cả",
-            command=lambda: self.clean_all_system()
-        ).grid(row=0, column=1, padx=5)
+            command=lambda: self.clean_all_system(),
+            width=20
+        ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
     
     def setup_smp_tab(self):
         """Thiết lập tab SMP Programming"""
-        container = ttk.Frame(self.smp_frame, padding="10")
+        container = ttk.Frame(self.smp_frame, padding="5")
         container.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         self.smp_frame.columnconfigure(0, weight=1)
         self.smp_frame.rowconfigure(0, weight=1)
-        container.columnconfigure(1, weight=1)
+        container.columnconfigure(0, weight=1)
+        
+        # Canvas và scrollbar
+        canvas = tk.Canvas(container)
+        scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
         
         # Danh sách các ví dụ SMP
         smp_examples = [
@@ -391,22 +465,14 @@ class KernelLinuxGUI:
         ]
         
         row = 0
-        ttk.Label(
-            container,
-            text="Các Ví Dụ SMP Programming:",
-            font=("Arial", 11, "bold")
-        ).grid(row=row, column=0, columnspan=2, sticky=tk.W, pady=(0, 10))
-        row += 1
-        
         for example_name, example_dir in smp_examples:
-            # Label
-            ttk.Label(container, text=f"{example_name}:").grid(
-                row=row, column=0, sticky=tk.W, pady=5, padx=(0, 10)
-            )
-            
-            # Buttons frame
-            btn_frame = ttk.Frame(container)
-            btn_frame.grid(row=row, column=1, sticky=tk.W, pady=5)
+            # Tiêu đề
+            ttk.Label(
+                scrollable_frame,
+                text=example_name,
+                font=("Arial", 9, "bold")
+            ).grid(row=row, column=0, sticky=tk.W, pady=(10, 5), padx=5)
+            row += 1
             
             example_path = self.project_root / "smp-programming" / example_dir
             
@@ -415,71 +481,62 @@ class KernelLinuxGUI:
                 makefile = example_path / "Makefile"
                 if makefile.exists():
                     ttk.Button(
-                        btn_frame,
+                        scrollable_frame,
                         text="Compile",
-                        command=lambda p=example_path: self.compile_c_project(p)
-                    ).grid(row=0, column=0, padx=2)
+                        command=lambda p=example_path: self.compile_c_project(p),
+                        width=20
+                    ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
+                    row += 1
                 
                 # Tìm executable
-                executable = None
                 for f in example_path.iterdir():
                     if f.is_file() and os.access(f, os.X_OK) and not f.suffix:
-                        executable = f
+                        ttk.Button(
+                            scrollable_frame,
+                            text="Chạy",
+                            command=lambda p=f: self.run_executable(p),
+                            width=20
+                        ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
+                        row += 1
                         break
-                
-                if executable:
-                    ttk.Button(
-                        btn_frame,
-                        text="Chạy",
-                        command=lambda p=executable: self.run_executable(p)
-                    ).grid(row=0, column=1, padx=2)
-                
-                # Nút README
-                readme = example_path / "README.md"
-                if readme.exists():
-                    ttk.Button(
-                        btn_frame,
-                        text="README",
-                        command=lambda p=readme: self.view_file(p)
-                    ).grid(row=0, column=2, padx=2)
-            
-            row += 1
         
         # Quick actions
-        ttk.Separator(container, orient=tk.HORIZONTAL).grid(
-            row=row, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10
+        ttk.Separator(scrollable_frame, orient=tk.HORIZONTAL).grid(
+            row=row, column=0, sticky=(tk.W, tk.E), pady=10, padx=5
         )
         row += 1
         
         ttk.Label(
-            container,
-            text="Quick Actions:",
-            font=("Arial", 11, "bold")
-        ).grid(row=row, column=0, columnspan=2, sticky=tk.W, pady=(0, 5))
+            scrollable_frame,
+            text="Quick Actions",
+            font=("Arial", 10, "bold")
+        ).grid(row=row, column=0, sticky=tk.W, pady=(0, 5), padx=5)
         row += 1
         
-        quick_frame = ttk.Frame(container)
-        quick_frame.grid(row=row, column=0, columnspan=2, sticky=tk.W)
-        
         ttk.Button(
-            quick_frame,
-            text="Chạy Demo Tổng Hợp",
+            scrollable_frame,
+            text="Demo Tổng Hợp",
             command=lambda: self.run_shell_script(
                 self.project_root / "smp-programming" / "demo.sh"
-            )
-        ).grid(row=0, column=0, padx=5)
+            ),
+            width=20
+        ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
+        row += 1
         
         ttk.Button(
-            quick_frame,
+            scrollable_frame,
             text="Compile Tất Cả",
-            command=lambda: self.compile_all_smp()
-        ).grid(row=0, column=1, padx=5)
+            command=lambda: self.compile_all_smp(),
+            width=20
+        ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
+        row += 1
         
         ttk.Button(
-            quick_frame,
+            scrollable_frame,
             text="Clean Tất Cả",
-            command=lambda: self.clean_all_smp()
-        ).grid(row=0, column=2, padx=5)
+            command=lambda: self.clean_all_smp(),
+            width=20
+        ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
     
     def run_shell_script(self, script_path):
         """Chạy shell script"""
@@ -503,6 +560,28 @@ class KernelLinuxGUI:
         )
         thread.start()
     
+    def run_shell_script_sudo(self, script_path):
+        """Chạy shell script với quyền sudo"""
+        if not script_path.exists():
+            self.log_terminal(f"Lỗi: Không tìm thấy script {script_path}\n")
+            return
+        
+        # Đảm bảo script có quyền thực thi
+        os.chmod(script_path, 0o755)
+        
+        self.log_terminal(f"\n{'='*60}\n")
+        self.log_terminal(f"Đang chạy với sudo: {script_path.name}\n")
+        self.log_terminal(f"Đường dẫn: {script_path}\n")
+        self.log_terminal(f"{'='*60}\n\n")
+        
+        # Chạy với sudo trong thread riêng
+        thread = threading.Thread(
+            target=self._run_command,
+            args=(["sudo", "bash", str(script_path)], script_path.parent),
+            daemon=True
+        )
+        thread.start()
+    
     def run_executable(self, exe_path):
         """Chạy file thực thi C"""
         if not exe_path.exists():
@@ -518,6 +597,25 @@ class KernelLinuxGUI:
         thread = threading.Thread(
             target=self._run_command,
             args=([str(exe_path)], exe_path.parent),
+            daemon=True
+        )
+        thread.start()
+    
+    def run_executable_sudo(self, exe_path):
+        """Chạy file thực thi C với quyền sudo"""
+        if not exe_path.exists():
+            self.log_terminal(f"Lỗi: Không tìm thấy executable {exe_path}\n")
+            return
+        
+        self.log_terminal(f"\n{'='*60}\n")
+        self.log_terminal(f"Đang chạy với sudo: {exe_path.name}\n")
+        self.log_terminal(f"Đường dẫn: {exe_path}\n")
+        self.log_terminal(f"{'='*60}\n\n")
+        
+        # Chạy với sudo trong thread riêng
+        thread = threading.Thread(
+            target=self._run_command,
+            args=(["sudo", str(exe_path)], exe_path.parent),
             daemon=True
         )
         thread.start()
