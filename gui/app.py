@@ -82,10 +82,34 @@ class KernelLinuxGUI:
             },
             "shell-scripting/file-management/find_duplicates.sh": {
                 "needs_sudo": False,
-                "params": [
-                    {"name": "directory", "prompt": "Directory to scan", "example": "/home/user/Documents", "required": True},
-                    {"name": "action", "prompt": "Action (list/delete/move, optional)", "example": "list", "required": False, "default": "list"}
-                ]
+                "choice_mode": True,
+                "choice_config": {
+                    "prompt": "Choose duplicate file action:",
+                    "param_order": "params_first",
+                    "choices": [
+                        {
+                            "label": "List Duplicates Only (no changes)",
+                            "value": "list",
+                            "params": [
+                                {"name": "directory", "prompt": "Directory to scan", "example": "/home/user/Documents", "required": True}
+                            ]
+                        },
+                        {
+                            "label": "Delete Duplicates (interactive confirmation)",
+                            "value": "delete",
+                            "params": [
+                                {"name": "directory", "prompt": "Directory to scan", "example": "/home/user/Documents", "required": True}
+                            ]
+                        },
+                        {
+                            "label": "Move Duplicates to Subfolder",
+                            "value": "move",
+                            "params": [
+                                {"name": "directory", "prompt": "Directory to scan", "example": "/home/user/Documents", "required": True}
+                            ]
+                        }
+                    ]
+                }
             },
             "shell-scripting/file-management/cleanup.sh": {
                 "needs_sudo": False,
@@ -95,11 +119,44 @@ class KernelLinuxGUI:
                 ]
             },
             "shell-scripting/package-management/package_manager.sh": {
-                "needs_sudo": True,  # Package installation requires sudo
-                "params": [
-                    {"name": "command", "prompt": "Command (install/remove/search/update/upgrade/list)", "example": "install", "required": True},
-                    {"name": "package_name", "prompt": "Package name (required for install/remove/search)", "example": "vim", "required": False, "default": ""}
-                ]
+                "needs_sudo": True,
+                "choice_mode": True,
+                "choice_config": {
+                    "prompt": "Choose package operation:",
+                    "choices": [
+                        {
+                            "label": "Install Package",
+                            "value": "install",
+                            "params": [
+                                {"name": "package", "prompt": "Package name to install", "example": "vim", "required": True}
+                            ]
+                        },
+                        {
+                            "label": "Remove Package",
+                            "value": "remove",
+                            "params": [
+                                {"name": "package", "prompt": "Package name to remove", "example": "vim", "required": True}
+                            ]
+                        },
+                        {
+                            "label": "Update System",
+                            "value": "update",
+                            "params": []
+                        },
+                        {
+                            "label": "Search Package",
+                            "value": "search",
+                            "params": [
+                                {"name": "package", "prompt": "Package name to search", "example": "vim", "required": True}
+                            ]
+                        },
+                        {
+                            "label": "List Installed Packages",
+                            "value": "list",
+                            "params": []
+                        }
+                    ]
+                }
             },
             "shell-scripting/package-management/dependency_checker.sh": {
                 "needs_sudo": False,
@@ -109,10 +166,89 @@ class KernelLinuxGUI:
             },
             "shell-scripting/time-management/stopwatch.sh": {
                 "needs_sudo": False,
-                "params": [
-                    {"name": "command", "prompt": "Command (start/stop/status)", "example": "start", "required": True},
-                    {"name": "name", "prompt": "Stopwatch name (optional for start)", "example": "coding-session", "required": False, "default": "stopwatch"}
-                ]
+                "choice_mode": True,
+                "choice_config": {
+                    "prompt": "Choose stopwatch operation:",
+                    "choices": [
+                        {
+                            "label": "Start Stopwatch",
+                            "value": "start",
+                            "params": [
+                                {"name": "name", "prompt": "Stopwatch name (optional)", "example": "coding-session", "required": False}
+                            ]
+                        },
+                        {
+                            "label": "Stop Stopwatch",
+                            "value": "stop",
+                            "params": []
+                        },
+                        {
+                            "label": "Show Status",
+                            "value": "status",
+                            "params": []
+                        },
+                        {
+                            "label": "Lap Time",
+                            "value": "lap",
+                            "params": []
+                        },
+                        {
+                            "label": "Countdown Timer",
+                            "value": "countdown",
+                            "params": [
+                                {"name": "seconds", "prompt": "Countdown seconds", "example": "60", "required": True},
+                                {"name": "message", "prompt": "Completion message (optional)", "example": "Time's up!", "required": False}
+                            ]
+                        },
+                        {
+                            "label": "Pomodoro Timer",
+                            "value": "pomodoro",
+                            "params": [
+                                {"name": "work_min", "prompt": "Work minutes (optional, default 25)", "example": "25", "required": False},
+                                {"name": "break_min", "prompt": "Break minutes (optional, default 5)", "example": "5", "required": False},
+                                {"name": "cycles", "prompt": "Number of cycles (optional, default 4)", "example": "4", "required": False}
+                            ]
+                        },
+                        {
+                            "label": "Set Alarm",
+                            "value": "alarm",
+                            "params": [
+                                {"name": "time", "prompt": "Alarm time (HH:MM)", "example": "14:30", "required": True},
+                                {"name": "message", "prompt": "Alarm message (optional)", "example": "Meeting time!", "required": False}
+                            ]
+                        }
+                    ]
+                }
+            },
+            "shell-scripting/task-scheduler/cron_manager.sh": {
+                "needs_sudo": False,
+                "choice_mode": True,
+                "choice_config": {
+                    "prompt": "Choose cron operation:",
+                    "choices": [
+                        {
+                            "label": "List Jobs (--list)",
+                            "value": "--list",
+                            "params": []
+                        },
+                        {
+                            "label": "Add Job (--add)",
+                            "value": "--add",
+                            "params": [
+                                {"name": "cron_time", "prompt": "Cron expression (minute hour day month weekday)", "example": "0 2 * * *", "required": True},
+                                {"name": "command", "prompt": "Command to execute", "example": "/home/user/backup.sh", "required": True},
+                                {"name": "description", "prompt": "Description (optional)", "example": "Daily backup at 2 AM", "required": False}
+                            ]
+                        },
+                        {
+                            "label": "Delete Job (--delete)",
+                            "value": "--delete",
+                            "params": [
+                                {"name": "job_id", "prompt": "Job ID to delete (see list)", "example": "1", "required": True}
+                            ]
+                        }
+                    ]
+                }
             }
         }
     
@@ -283,6 +419,222 @@ class KernelLinuxGUI:
         self.root.wait_window(dialog)
         
         return result["params"] if result["ok"] else None
+    
+    def collect_script_choice(self, script_path, choice_config):
+        """Show dialog with radio buttons for choosing script operation mode
+        
+        Args:
+            script_path: Path to the script
+            choice_config: Dict with structure:
+                {
+                    "prompt": "Choose operation:",
+                    "choices": [
+                        {
+                            "label": "List",
+                            "value": "--list",
+                            "params": []
+                        },
+                        {
+                            "label": "Add",
+                            "value": "--add",
+                            "params": [{"name": "...", "prompt": "...", ...}]
+                        }
+                    ]
+                }
+        
+        Returns:
+            Dict with {"flag": "--list", "params": [...]} or None if cancelled
+        """
+        dialog = tk.Toplevel(self.root)
+        dialog.title(f"Choose Operation - {script_path.name}")
+        dialog.geometry("500x600")
+        dialog.resizable(True, True)
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        # Center dialog
+        dialog.update_idletasks()
+        x = (dialog.winfo_screenwidth() // 2) - (dialog.winfo_width() // 2)
+        y = (dialog.winfo_screenheight() // 2) - (dialog.winfo_height() // 2)
+        dialog.geometry(f"+{x}+{y}")
+        
+        # Main container with scrollbar
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Title
+        ttk.Label(
+            main_frame,
+            text=choice_config.get("prompt", "Choose operation:"),
+            font=("Arial", 11, "bold")
+        ).pack(pady=(0, 10))
+        
+        # Radio button selection
+        selected_choice = tk.StringVar(value="0")
+        
+        choice_frame = ttk.LabelFrame(main_frame, text="Operation Mode", padding="10")
+        choice_frame.pack(fill=tk.X, pady=(0, 15))
+        
+        for idx, choice in enumerate(choice_config["choices"]):
+            ttk.Radiobutton(
+                choice_frame,
+                text=choice["label"],
+                variable=selected_choice,
+                value=str(idx)
+            ).pack(anchor=tk.W, pady=2)
+        
+        # Dynamic parameters frame
+        params_container = ttk.Frame(main_frame)
+        params_container.pack(fill=tk.BOTH, expand=True)
+        
+        # Canvas for scrolling parameters
+        canvas = tk.Canvas(params_container, height=300)
+        scrollbar = ttk.Scrollbar(params_container, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Store entry widgets for each choice
+        choice_entries = {}
+        
+        def update_params_display(*args):
+            """Update parameter fields based on selected choice"""
+            # Clear existing widgets
+            for widget in scrollable_frame.winfo_children():
+                widget.destroy()
+            
+            choice_idx = int(selected_choice.get())
+            choice = choice_config["choices"][choice_idx]
+            params = choice.get("params", [])
+            
+            if not params:
+                ttk.Label(
+                    scrollable_frame,
+                    text="No additional parameters needed.",
+                    foreground="gray",
+                    font=("Arial", 10, "italic")
+                ).pack(pady=20)
+                choice_entries[choice_idx] = []
+                return
+            
+            # Create parameter input fields
+            entries = []
+            for i, param in enumerate(params):
+                row = i * 2
+                
+                # Label with required indicator
+                label_text = param['prompt']
+                if param.get('required', False):
+                    label_text += " *"
+                
+                param_frame = ttk.Frame(scrollable_frame)
+                param_frame.pack(fill=tk.X, pady=(10, 5))
+                
+                ttk.Label(
+                    param_frame,
+                    text=label_text,
+                    font=("Arial", 10)
+                ).pack(anchor=tk.W)
+                
+                # Entry with placeholder
+                entry = ttk.Entry(param_frame, width=50)
+                entry.pack(fill=tk.X, pady=(2, 0))
+                
+                # Placeholder handling
+                placeholder = param.get('example', '')
+                if placeholder:
+                    entry.insert(0, placeholder)
+                    entry.config(foreground='gray')
+                    
+                    def on_focus_in(e, entry=entry, placeholder=placeholder):
+                        if entry.get() == placeholder and entry.cget('foreground') == 'gray':
+                            entry.delete(0, tk.END)
+                            entry.config(foreground='black')
+                    
+                    def on_focus_out(e, entry=entry, placeholder=placeholder):
+                        if not entry.get():
+                            entry.insert(0, placeholder)
+                            entry.config(foreground='gray')
+                    
+                    entry.bind('<FocusIn>', on_focus_in)
+                    entry.bind('<FocusOut>', on_focus_out)
+                
+                entries.append((param, entry))
+            
+            choice_entries[choice_idx] = entries
+        
+        # Bind radio button change to update params
+        selected_choice.trace('w', update_params_display)
+        
+        # Initial display
+        update_params_display()
+        
+        # Result container
+        result = {"ok": False, "flag": None, "params": []}
+        
+        def on_ok():
+            choice_idx = int(selected_choice.get())
+            choice = choice_config["choices"][choice_idx]
+            
+            # Validate and collect parameters
+            params = []
+            error_msgs = []
+            
+            if choice_idx in choice_entries:
+                for param_def, entry in choice_entries[choice_idx]:
+                    # Check if it's placeholder
+                    if entry.cget('foreground') == 'gray':
+                        value = ""
+                    else:
+                        value = entry.get()
+                    
+                    # Validate required
+                    if param_def.get('required', False) and not value:
+                        error_msgs.append(f"- {param_def['prompt']} is required")
+                        continue
+                    
+                    if value:
+                        params.append(value)
+            
+            if error_msgs:
+                messagebox.showerror(
+                    "Missing Required Parameters",
+                    "Please fill in the required parameters:\n\n" + "\n".join(error_msgs),
+                    parent=dialog
+                )
+                return
+            
+            result["ok"] = True
+            result["flag"] = choice["value"]
+            result["params"] = params
+            dialog.destroy()
+        
+        def on_cancel():
+            result["ok"] = False
+            dialog.destroy()
+        
+        # Buttons
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(pady=(15, 0))
+        
+        ttk.Button(button_frame, text="OK", command=on_ok, width=15).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Cancel", command=on_cancel, width=15).pack(side=tk.LEFT, padx=5)
+        
+        # Wait for dialog
+        self.root.wait_window(dialog)
+        
+        if result["ok"]:
+            return {"flag": result["flag"], "params": result["params"]}
+        return None
         
     def setup_ui(self):
         """Thiết lập giao diện người dùng"""
@@ -838,13 +1190,45 @@ class KernelLinuxGUI:
         # Collect parameters if script needs them
         script_params = []
         needs_sudo = False
+        stdin_inputs = []  # For interactive scripts like --add mode
+        
         rel_path = str(script_path.relative_to(self.project_root))
         if rel_path in self.script_params:
-            needs_sudo = self.script_params[rel_path].get("needs_sudo", False)
-            script_params = self.collect_script_parameters(script_path)
-            if script_params is None:  # User cancelled
-                self.log_terminal(f"Đã hủy: {script_path.name}\n")
-                return
+            script_config = self.script_params[rel_path]
+            needs_sudo = script_config.get("needs_sudo", False)
+            
+            # Check if script uses choice mode (radio buttons)
+            if script_config.get("choice_mode", False):
+                choice_result = self.collect_script_choice(script_path, script_config["choice_config"])
+                if choice_result is None:  # User cancelled
+                    self.log_terminal(f"Đã hủy: {script_path.name}\n")
+                    return
+                
+                # Build script_params based on param_order
+                param_order = script_config["choice_config"].get("param_order", "flag_first")
+                
+                if param_order == "params_first":
+                    # Params come before flag (e.g., find_duplicates.sh <dir> <action>)
+                    script_params = choice_result["params"] + [choice_result["flag"]]
+                else:
+                    # Flag comes first (default, e.g., cron_manager.sh --list)
+                    script_params.append(choice_result["flag"])
+                    
+                    # For --add mode, we need to send params via stdin
+                    if choice_result["flag"] == "--add" and choice_result["params"]:
+                        stdin_inputs = choice_result["params"]  # [cron_time, command, description]
+                    # For --delete, the job_id goes as argument
+                    elif choice_result["flag"] == "--delete" and choice_result["params"]:
+                        script_params.append(choice_result["params"][0])  # job_id
+                    # For other commands with params
+                    elif choice_result["params"]:
+                        script_params.extend(choice_result["params"])
+            else:
+                # Regular parameter collection
+                script_params = self.collect_script_parameters(script_path)
+                if script_params is None:  # User cancelled
+                    self.log_terminal(f"Đã hủy: {script_path.name}\n")
+                    return
         
         self.log_terminal(f"\n{'='*60}\n")
         self.log_terminal(f"Đang chạy: {script_path.name}\n")
