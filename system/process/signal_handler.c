@@ -12,6 +12,7 @@
 #include <signal.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/wait.h>
 
 volatile sig_atomic_t got_signal = 0;
 volatile sig_atomic_t signal_count = 0;
