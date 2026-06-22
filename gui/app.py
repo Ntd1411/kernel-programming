@@ -600,6 +600,13 @@ class KernelLinuxGUI:
         self.log_terminal("Đang clean tất cả ví dụ SMP Programming...\n")
         self.log_terminal(f"{'='*60}\n\n")
         
+        smp_dir = self.project_root / "smp-programming"
+        for example_dir in sorted(smp_dir.iterdir()):
+            if example_dir.is_dir() and (example_dir / "Makefile").exists():
+                self.log_terminal(f"Clean {example_dir.name}...\n")
+                thread = threading.Thread(
+                    target=self._run_command,
+                    args=(["make", "clean"], example_dir),
                     daemon=True
                 )
                 thread.start()
