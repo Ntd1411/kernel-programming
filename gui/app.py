@@ -859,7 +859,8 @@ class KernelLinuxGUI:
         
         # Build command with sudo if needed
         if needs_sudo:
-            command = ["sudo", "bash", str(script_path)]
+            # -S flag allows sudo to read password from stdin
+            command = ["sudo", "-S", "bash", str(script_path)]
         else:
             command = ["bash", str(script_path)]
         
