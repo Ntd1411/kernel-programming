@@ -32,8 +32,202 @@ class ShellScriptGUI:
         self.current_process = None
         self.is_running = False
         
+        # Define script parameters
+        self.script_params = self.define_script_parameters()
+        
         self.setup_ui()
         self.check_output_queue()
+    
+    def define_script_parameters(self):
+        """Định nghĩa parameters cho mỗi script"""
+        return {
+            "file-management/backup.sh": {
+                "params": [
+                    {"name": "source_dir", "prompt": "Source directory", "example": "/home/user/Documents", "required": True},
+                    {"name": "backup_dir", "prompt": "Backup directory", "example": "/backup", "required": True},
+                    {"name": "retention_days", "prompt": "Retention days (optional)", "example": "7", "required": False, "default": "7"}
+                ]
+            },
+            "file-management/find_duplicates.sh": {
+                "params": [
+                    {"name": "directory", "prompt": "Directory to scan", "example": "/home/user/Documents", "required": True},
+                    {"name": "action", "prompt": "Action (list/delete/move, optional)", "example": "list", "required": False, "default": "list"}
+                ]
+            },
+            "file-management/cleanup.sh": {
+                "params": [
+                    {"name": "days", "prompt": "Days old (optional, use --days flag)", "example": "30", "required": False, "default": ""},
+                    {"name": "dry_run", "prompt": "Dry run? (yes/no, optional)", "example": "no", "required": False, "default": "no"},
+                ]
+            },
+            "package-management/package_manager.sh": {
+                "params": [
+                    {"name": "command", "prompt": "Command (install/remove/search/update/upgrade/list)", "example": "install", "required": True},
+                    {"name": "package_name", "prompt": "Package name (required for install/remove/search)", "example": "vim", "required": False, "default": ""}
+                ]
+            },
+            "package-management/dependency_checker.sh": {
+                "params": [
+                    {"name": "package_name", "prompt": "Package name to check", "example": "vim", "required": True}
+                ]
+            },
+            "time-management/stopwatch.sh": {
+                "params": [
+                    {"name": "command", "prompt": "Command (start/stop/status)", "example": "start", "required": True},
+                    {"name": "name", "prompt": "Stopwatch name (optional for start)", "example": "coding-session", "required": False, "default": "stopwatch"}
+                ]
+            }
+        }
+    
+    def collect_script_parameters(self, script_path):
+        """Thu thập parameters từ người dùng cho script"""
+        if script_path not in self.script_params:
+            return []
+        
+        param_defs = self.script_params[script_path]["params"]
+        collected_params = []
+        
+        # Create parameter collection dialog
+        dialog = tk.Toplevel(self.root)
+        dialog.title(f"Parameters for {script_path}")
+        dialog.geometry("600x400")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        # Center dialog
+        dialog.update_idletasks()
+        x = (dialog.winfo_screenwidth() // 2) - (600 // 2)
+        y = (dialog.winfo_screenheight() // 2) - (400 // 2)
+        dialog.geometry(f"+{x}+{y}")
+        
+        # Title
+        title_frame = ttk.Frame(dialog, padding="10")
+        title_frame.pack(fill=tk.X)
+        
+        title_label = ttk.Label(
+            title_frame,
+            text=f"Enter parameters for: {script_path}",
+            font=("Arial", 12, "bold")
+        )
+        title_label.pack()
+        
+        # Parameters frame
+        params_frame = ttk.Frame(dialog, padding="10")
+        params_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Create input fields
+        entries = []
+        for idx, param in enumerate(param_defs):
+            # Label
+            label_text = f"{param['prompt']}"
+            if param['required']:
+                label_text += " *"
+            else:
+                label_text += f" (default: {param.get('default', 'none')})"
+            
+            label = ttk.Label(params_frame, text=label_text)
+            label.grid(row=idx*2, column=0, sticky=tk.W, pady=(5, 0))
+            
+            # Entry with example placeholder
+            entry = ttk.Entry(params_frame, width=50)
+            entry.grid(row=idx*2+1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+            entry.insert(0, param.get('example', ''))
+            entry.config(foreground='gray')
+            
+            # Bind events to handle placeholder
+            def on_focus_in(event, e=entry, ex=param.get('example', '')):
+                if e.get() == ex:
+                    e.delete(0, tk.END)
+                    e.config(foreground='black')
+            
+            def on_focus_out(event, e=entry, ex=param.get('example', '')):
+                if not e.get():
+                    e.insert(0, ex)
+                    e.config(foreground='gray')
+            
+            entry.bind('<FocusIn>', on_focus_in)
+            entry.bind('<FocusOut>', on_focus_out)
+            
+            entries.append((param, entry))
+        
+        params_frame.columnconfigure(0, weight=1)
+        
+        # Info label
+        info_frame = ttk.Frame(dialog, padding="10")
+        info_frame.pack(fill=tk.X)
+        
+        info_label = ttk.Label(
+            info_frame,
+            text="* Required parameters. Leave optional parameters empty to use default.",
+            foreground="blue",
+            font=("Arial", 9, "italic")
+        )
+        info_label.pack()
+        
+        # Buttons
+        button_frame = ttk.Frame(dialog, padding="10")
+        button_frame.pack(fill=tk.X)
+        
+        result = {"ok": False, "params": []}
+        
+        def on_ok():
+            params = []
+            error_msgs = []
+            
+            for param_def, entry in entries:
+                value = entry.get()
+                
+                # Check if it's still the placeholder
+                if value == param_def.get('example', ''):
+                    value = ""
+                
+                # Validate required parameters
+                if param_def['required'] and not value:
+                    error_msgs.append(f"- {param_def['prompt']} is required")
+                    continue
+                
+                # Use default if empty and not required
+                if not value and not param_def['required']:
+                    value = param_def.get('default', '')
+                
+                # Only add non-empty values to params
+                if value:
+                    # Special handling for cleanup.sh flags
+                    if 'dry_run' in param_def['name']:
+                        if value.lower() in ['yes', 'y', '1', 'true']:
+                            params.append('--dry-run')
+                    elif 'days' in param_def['name'] and script_path == 'file-management/cleanup.sh':
+                        if value:
+                            params.extend(['--days', value])
+                    else:
+                        params.append(value)
+            
+            if error_msgs:
+                messagebox.showerror(
+                    "Missing Required Parameters",
+                    "Please fill in the required parameters:\n\n" + "\n".join(error_msgs),
+                    parent=dialog
+                )
+                return
+            
+            result["ok"] = True
+            result["params"] = params
+            dialog.destroy()
+        
+        def on_cancel():
+            result["ok"] = False
+            dialog.destroy()
+        
+        ok_btn = ttk.Button(button_frame, text="OK", command=on_ok, width=15)
+        ok_btn.pack(side=tk.LEFT, padx=5)
+        
+        cancel_btn = ttk.Button(button_frame, text="Cancel", command=on_cancel, width=15)
+        cancel_btn.pack(side=tk.LEFT, padx=5)
+        
+        # Wait for dialog to close
+        self.root.wait_window(dialog)
+        
+        return result["params"] if result["ok"] else None
         
     def setup_ui(self):
         """Thiết lập giao diện người dùng"""
@@ -226,11 +420,24 @@ class ShellScriptGUI:
         if not full_path.exists():
             self.append_output(f"ERROR: Script không tồn tại: {full_path}\n", "error")
             return
+        
+        # Check if script needs parameters
+        script_params = []
+        if script_path in self.script_params:
+            # Collect parameters from user
+            script_params = self.collect_script_parameters(script_path)
+            
+            # User cancelled parameter input
+            if script_params is None:
+                self.append_output(f"Cancelled: {script_name}\n", "error")
+                return
             
         self.clear_output()
         self.append_output(f"{'='*80}\n", "info")
         self.append_output(f"Đang chạy: {script_name}\n", "info")
         self.append_output(f"Path: {full_path}\n", "info")
+        if script_params:
+            self.append_output(f"Parameters: {' '.join(script_params)}\n", "info")
         self.append_output(f"{'='*80}\n\n", "info")
         
         self.is_running = True
@@ -240,20 +447,25 @@ class ShellScriptGUI:
         # Chạy script trong thread riêng
         thread = threading.Thread(
             target=self._execute_script,
-            args=(full_path, script_name),
+            args=(full_path, script_name, script_params),
             daemon=True
         )
         thread.start()
         
-    def _execute_script(self, script_path, script_name):
+    def _execute_script(self, script_path, script_name, script_params=None):
         """Thực thi script và capture output"""
         try:
             # Make script executable
             os.chmod(script_path, 0o755)
             
+            # Build command with parameters
+            command = ['bash', str(script_path)]
+            if script_params:
+                command.extend(script_params)
+            
             # Run script
             self.current_process = subprocess.Popen(
-                ['bash', str(script_path)],
+                command,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 stdin=subprocess.PIPE,
