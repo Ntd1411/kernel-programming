@@ -76,6 +76,10 @@ class KernelLinuxGUI:
                     {"name": "retention_days", "prompt": "Retention days (optional)", "example": "7", "required": False, "default": "7"}
                 ]
             },
+            "shell-scripting/file-management/file_manager.sh": {
+                "needs_sudo": True,  # Can manage root-owned files/directories
+                "params": []
+            },
             "shell-scripting/file-management/find_duplicates.sh": {
                 "needs_sudo": False,
                 "params": [
