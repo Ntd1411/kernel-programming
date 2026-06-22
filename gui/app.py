@@ -639,9 +639,10 @@ class KernelLinuxGUI:
         self.log_terminal(f"{'='*60}\n\n")
         
         # Chạy make tại thư mục chứa Makefile
+        cmd = f"cd '{project_path}' && make"
         thread = threading.Thread(
             target=self._run_command,
-            args=(["make"], project_path),
+            args=(["bash", "-c", cmd], self.project_root),
             daemon=True
         )
         thread.start()
@@ -656,9 +657,10 @@ class KernelLinuxGUI:
         for module_dir in sorted(system_dir.iterdir()):
             if module_dir.is_dir() and (module_dir / "Makefile").exists():
                 self.log_terminal(f"Compile {module_dir.name}...\n")
+                cmd = f"cd '{module_dir}' && make"
                 thread = threading.Thread(
                     target=self._run_command,
-                    args=(["make"], module_dir),
+                    args=(["bash", "-c", cmd], self.project_root),
                     daemon=True
                 )
                 thread.start()
@@ -674,9 +676,10 @@ class KernelLinuxGUI:
         for module_dir in sorted(system_dir.iterdir()):
             if module_dir.is_dir() and (module_dir / "Makefile").exists():
                 self.log_terminal(f"Clean {module_dir.name}...\n")
+                cmd = f"cd '{module_dir}' && make clean"
                 thread = threading.Thread(
                     target=self._run_command,
-                    args=(["make", "clean"], module_dir),
+                    args=(["bash", "-c", cmd], self.project_root),
                     daemon=True
                 )
                 thread.start()
@@ -692,9 +695,10 @@ class KernelLinuxGUI:
         for example_dir in sorted(smp_dir.iterdir()):
             if example_dir.is_dir() and (example_dir / "Makefile").exists():
                 self.log_terminal(f"Compile {example_dir.name}...\n")
+                cmd = f"cd '{example_dir}' && make"
                 thread = threading.Thread(
                     target=self._run_command,
-                    args=(["make"], example_dir),
+                    args=(["bash", "-c", cmd], self.project_root),
                     daemon=True
                 )
                 thread.start()
@@ -710,9 +714,10 @@ class KernelLinuxGUI:
         for example_dir in sorted(smp_dir.iterdir()):
             if example_dir.is_dir() and (example_dir / "Makefile").exists():
                 self.log_terminal(f"Clean {example_dir.name}...\n")
+                cmd = f"cd '{example_dir}' && make clean"
                 thread = threading.Thread(
                     target=self._run_command,
-                    args=(["make", "clean"], example_dir),
+                    args=(["bash", "-c", cmd], self.project_root),
                     daemon=True
                 )
                 thread.start()
