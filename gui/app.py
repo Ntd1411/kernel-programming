@@ -353,6 +353,12 @@ class KernelLinuxGUI:
             ("Network Programming", "network", True, True)
         ]
         
+        # Danh sách các file cần sudo trong từng module
+        files_need_sudo = {
+            "process": ["process_priority"],
+            "network": []  # Tất cả file trong network đều cần sudo
+        }
+        
         row = 0
         for module_name, module_dir, needs_sudo, has_auto_test in system_modules:
             # Tiêu đề module
@@ -383,11 +389,14 @@ class KernelLinuxGUI:
                     exe_name = c_file.stem
                     exe_path = module_path / exe_name
                     
+                    # Kiểm tra xem file có cần sudo không
+                    file_needs_sudo = needs_sudo or (module_dir in files_need_sudo and exe_name in files_need_sudo[module_dir])
+                    
                     if has_auto_test:
                         # Tìm test script tương ứng
                         test_script = module_path / f"test_{exe_name}.sh"
                         if test_script.exists():
-                            if needs_sudo:
+                            if file_needs_sudo:
                                 ttk.Button(
                                     scrollable_frame,
                                     text=f"{exe_name} (sudo)",
@@ -404,7 +413,7 @@ class KernelLinuxGUI:
                             row += 1
                         else:
                             # Không có test script, chạy executable
-                            if needs_sudo:
+                            if file_needs_sudo:
                                 ttk.Button(
                                     scrollable_frame,
                                     text=f"{exe_name} (sudo)",
@@ -420,7 +429,7 @@ class KernelLinuxGUI:
                                 ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
                             row += 1
                     else:
-                        if needs_sudo:
+                        if file_needs_sudo:
                             ttk.Button(
                                 scrollable_frame,
                                 text=f"{exe_name} (sudo)",
