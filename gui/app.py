@@ -641,7 +641,7 @@ class KernelLinuxGUI:
         # Chạy make tại thư mục chứa Makefile
         thread = threading.Thread(
             target=self._run_command,
-            args=(["make", "-C", str(project_path)], self.project_root),
+            args=(["make"], project_path),
             daemon=True
         )
         thread.start()
@@ -658,7 +658,7 @@ class KernelLinuxGUI:
                 self.log_terminal(f"Compile {module_dir.name}...\n")
                 thread = threading.Thread(
                     target=self._run_command,
-                    args=(["make", "-C", str(module_dir)], self.project_root),
+                    args=(["make"], module_dir),
                     daemon=True
                 )
                 thread.start()
@@ -676,7 +676,7 @@ class KernelLinuxGUI:
                 self.log_terminal(f"Clean {module_dir.name}...\n")
                 thread = threading.Thread(
                     target=self._run_command,
-                    args=(["make", "-C", str(module_dir), "clean"], self.project_root),
+                    args=(["make", "clean"], module_dir),
                     daemon=True
                 )
                 thread.start()
@@ -694,7 +694,7 @@ class KernelLinuxGUI:
                 self.log_terminal(f"Compile {example_dir.name}...\n")
                 thread = threading.Thread(
                     target=self._run_command,
-                    args=(["make", "-C", str(example_dir)], self.project_root),
+                    args=(["make"], example_dir),
                     daemon=True
                 )
                 thread.start()
@@ -712,7 +712,7 @@ class KernelLinuxGUI:
                 self.log_terminal(f"Clean {example_dir.name}...\n")
                 thread = threading.Thread(
                     target=self._run_command,
-                    args=(["make", "-C", str(example_dir), "clean"], self.project_root),
+                    args=(["make", "clean"], example_dir),
                     daemon=True
                 )
                 thread.start()
