@@ -126,6 +126,10 @@ class KernelLinuxGUI:
         
         param_defs = self.script_params[rel_path]["params"]
         
+        # If no parameters needed, skip dialog
+        if not param_defs:
+            return []
+        
         # Create parameter collection dialog
         dialog = tk.Toplevel(self.root)
         dialog.title(f"Parameters - {script_path.name}")
@@ -523,16 +527,6 @@ class KernelLinuxGUI:
             text="Quick Start",
             command=lambda: self.run_shell_script(
                 self.project_root / "shell-scripting" / "QUICKSTART.sh"
-            ),
-            width=20
-        ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
-        row += 1
-        
-        ttk.Button(
-            scrollable_frame,
-            text="Setup GUI",
-            command=lambda: self.run_shell_script(
-                self.project_root / "shell-scripting" / "setup_gui.sh"
             ),
             width=20
         ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
