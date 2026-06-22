@@ -56,11 +56,55 @@ class KernelLinuxGUI:
         # File descriptor của đầu "master" PTY đang dùng cho process hiện tại
         self.master_fd = None
         
+        # Define script parameters
+        self.script_params = self.define_script_parameters()
+        
         # Thiết lập giao diện
         self.setup_ui()
         
         # Bắt đầu cập nhật output
         self.update_output()
+    
+    def define_script_parameters(self):
+        """Định nghĩa parameters cho các shell scripts"""
+        return {
+            "shell-scripting/file-management/backup.sh": {
+                "params": [
+                    {"name": "source_dir", "prompt": "Source directory", "example": "/home/user/Documents", "required": True},
+                    {"name": "backup_dir", "prompt": "Backup directory", "example": "/backup", "required": True},
+                    {"name": "retention_days", "prompt": "Retention days (optional)", "example": "7", "required": False, "default": "7"}
+                ]
+            },
+            "shell-scripting/file-management/find_duplicates.sh": {
+                "params": [
+                    {"name": "directory", "prompt": "Directory to scan", "example": "/home/user/Documents", "required": True},
+                    {"name": "action", "prompt": "Action (list/delete/move, optional)", "example": "list", "required": False, "default": "list"}
+                ]
+            },
+            "shell-scripting/file-management/cleanup.sh": {
+                "params": [
+                    {"name": "days", "prompt": "Days old (optional, use --days flag)", "example": "30", "required": False, "default": ""},
+                    {"name": "dry_run", "prompt": "Dry run? (yes/no, optional)", "example": "no", "required": False, "default": "no"}
+                ]
+            },
+            "shell-scripting/package-management/package_manager.sh": {
+                "params": [
+                    {"name": "command", "prompt": "Command (install/remove/search/update/upgrade/list)", "example": "install", "required": True},
+                    {"name": "package_name", "prompt": "Package name (required for install/remove/search)", "example": "vim", "required": False, "default": ""}
+                ]
+            },
+            "shell-scripting/package-management/dependency_checker.sh": {
+                "params": [
+                    {"name": "package_name", "prompt": "Package name to check", "example": "vim", "required": True}
+                ]
+            },
+            "shell-scripting/time-management/stopwatch.sh": {
+                "params": [
+                    {"name": "command", "prompt": "Command (start/stop/status)", "example": "start", "required": True},
+                    {"name": "name", "prompt": "Stopwatch name (optional for start)", "example": "coding-session", "required": False, "default": "stopwatch"}
+                ]
+            }
+        }
         
     def setup_ui(self):
         """Thiết lập giao diện người dùng"""
