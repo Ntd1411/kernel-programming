@@ -12,8 +12,8 @@ import os
 import sys
 from pathlib import Path
 import queue
+import pty
 import select
-import fcntl
 
 class KernelLinuxGUI:
     def __init__(self, root):
@@ -779,16 +779,16 @@ class KernelLinuxGUI:
                     self.current_process.kill()
             
             try:
-                # Tạo process mới
+                # Tạo process mới với PTY
                 self.current_process = subprocess.Popen(
                     cmd,
                     cwd=cwd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     stdin=subprocess.PIPE,
-                    bufsize=1,
-                    universal_newlines=True,
-                    errors='replace'
+                    bufsize=0,
+                    universal_newlines=False,
+                    env={**os.environ, 'TERM': 'xterm-256color', 'LANG': 'C.UTF-8', 'LC_ALL': 'C.UTF-8'}
                 )
             except Exception as e:
                 self.output_queue.put(f"Lỗi khi chạy lệnh: {e}\n")
@@ -796,8 +796,15 @@ class KernelLinuxGUI:
         
         # Đọc output
         try:
-            for line in self.current_process.stdout:
-                self.output_queue.put(line)
+            while True:
+                data = self.current_process.stdout.read(1024)
+                if not data:
+                    break
+                try:
+                    text = data.decode('utf-8', errors='replace')
+                    self.output_queue.put(text)
+                except Exception:
+                    self.output_queue.put(data.decode('latin-1', errors='replace'))
             
             # Chờ process kết thúc
             return_code = self.current_process.wait()
@@ -819,7 +826,7 @@ class KernelLinuxGUI:
             with self.process_lock:
                 if self.current_process and self.current_process.poll() is None:
                     try:
-                        self.current_process.stdin.write('\n')
+                        self.current_process.stdin.write(b'\n')
                         self.current_process.stdin.flush()
                         self.log_terminal("\n")
                     except Exception as e:
@@ -831,7 +838,7 @@ class KernelLinuxGUI:
         with self.process_lock:
             if self.current_process and self.current_process.poll() is None:
                 try:
-                    self.current_process.stdin.write(input_text + '\n')
+                    self.current_process.stdin.write((input_text + '\n').encode('utf-8'))
                     self.current_process.stdin.flush()
                     self.log_terminal(f"> {input_text}\n")
                     self.terminal_input.delete(0, tk.END)
