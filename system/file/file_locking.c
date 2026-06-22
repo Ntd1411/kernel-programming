@@ -88,7 +88,7 @@ void demo_read_lock(const char *filename) {
     
     printf("\n=== Demo Read Lock ===\n");
     
-    fd = open(filename, O_RDONLY);
+    fd = open(filename, O_RDONLY | O_CREAT, 0644);
     if (fd == -1) {
         perror("open");
         return;
