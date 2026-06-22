@@ -192,20 +192,22 @@ class KernelLinuxGUI:
         
         params_frame.columnconfigure(0, weight=1)
         
-        # Info label
-        info_frame = ttk.Frame(dialog, padding="10")
-        info_frame.pack(fill=tk.X)
+        # Calculate next row after all entries
+        row = len(param_defs) * 2
         
+        # Info label in same grid column as fields
         ttk.Label(
-            info_frame,
+            params_frame,
             text="* Required parameters. Leave optional parameters empty to use default.",
             foreground="blue",
             font=("Arial", 9, "italic")
-        ).pack()
+        ).grid(row=row, column=0, sticky=tk.W, pady=(10, 5), padx=5)
         
-        # Buttons
-        button_frame = ttk.Frame(dialog, padding="10")
-        button_frame.pack(fill=tk.X)
+        row += 1
+        
+        # Buttons in same grid column as fields
+        button_container = ttk.Frame(params_frame)
+        button_container.grid(row=row, column=0, sticky=tk.W, pady=(5, 10), padx=5)
         
         result = {"ok": False, "params": []}
         
@@ -214,11 +216,11 @@ class KernelLinuxGUI:
             error_msgs = []
             
             for param_def, entry in entries:
-                value = entry.get()
-                
-                # Check if it's still the placeholder
-                if value == param_def.get('example', ''):
+                # Check if it's still the placeholder (gray foreground = placeholder)
+                if entry.cget('foreground') == 'gray':
                     value = ""
+                else:
+                    value = entry.get()
                 
                 # Validate required parameters
                 if param_def['required'] and not value:
@@ -257,10 +259,10 @@ class KernelLinuxGUI:
             result["ok"] = False
             dialog.destroy()
         
-        ok_btn = ttk.Button(button_frame, text="OK", command=on_ok, width=15)
+        ok_btn = ttk.Button(button_container, text="OK", command=on_ok, width=15)
         ok_btn.pack(side=tk.LEFT, padx=5)
         
-        cancel_btn = ttk.Button(button_frame, text="Cancel", command=on_cancel, width=15)
+        cancel_btn = ttk.Button(button_container, text="Cancel", command=on_cancel, width=15)
         cancel_btn.pack(side=tk.LEFT, padx=5)
         
         # Wait for dialog to close
