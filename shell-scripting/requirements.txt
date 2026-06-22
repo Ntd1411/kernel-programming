@@ -1,0 +1,8 @@
+# Python GUI Launcher Requirements
+# Chỉ cần Python 3.8+ với tkinter built-in
+
+# Tkinter thường đã được cài sẵn với Python
+# Nếu thiếu, cài đặt bằng:
+# Ubuntu/Debian: sudo apt install python3-tk
+# Fedora: sudo dnf install python3-tkinter
+# Arch: sudo pacman -S tk
