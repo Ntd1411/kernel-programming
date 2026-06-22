@@ -105,6 +105,168 @@ class KernelLinuxGUI:
                 ]
             }
         }
+    
+    def collect_script_parameters(self, script_path):
+        """Thu thập parameters từ người dùng cho script"""
+        # Get relative path for lookup
+        rel_path = str(script_path.relative_to(self.project_root))
+        
+        if rel_path not in self.script_params:
+            return []
+        
+        param_defs = self.script_params[rel_path]["params"]
+        
+        # Create parameter collection dialog
+        dialog = tk.Toplevel(self.root)
+        dialog.title(f"Parameters - {script_path.name}")
+        dialog.geometry("600x400")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        # Center dialog
+        dialog.update_idletasks()
+        x = (dialog.winfo_screenwidth() // 2) - (300)
+        y = (dialog.winfo_screenheight() // 2) - (200)
+        dialog.geometry(f"+{x}+{y}")
+        
+        # Title
+        title_frame = ttk.Frame(dialog, padding="10")
+        title_frame.pack(fill=tk.X)
+        
+        ttk.Label(
+            title_frame,
+            text=f"Enter parameters for: {script_path.name}",
+            font=("Arial", 12, "bold")
+        ).pack()
+        
+        # Parameters frame with scrollbar
+        canvas = tk.Canvas(dialog)
+        scrollbar = ttk.Scrollbar(dialog, orient="vertical", command=canvas.yview)
+        params_frame = ttk.Frame(canvas)
+        
+        params_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=params_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side="left", fill="both", expand=True, padx=10)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Create input fields
+        entries = []
+        for idx, param in enumerate(param_defs):
+            # Label
+            label_text = f"{param['prompt']}"
+            if param['required']:
+                label_text += " *"
+            else:
+                label_text += f" (default: {param.get('default', 'none')})"
+            
+            label = ttk.Label(params_frame, text=label_text)
+            label.grid(row=idx*2, column=0, sticky=tk.W, pady=(5, 0), padx=5)
+            
+            # Entry with example placeholder
+            entry = ttk.Entry(params_frame, width=50)
+            entry.grid(row=idx*2+1, column=0, sticky=(tk.W, tk.E), pady=(0, 10), padx=5)
+            entry.insert(0, param.get('example', ''))
+            entry.config(foreground='gray')
+            
+            # Bind events to handle placeholder
+            def on_focus_in(event, e=entry, ex=param.get('example', '')):
+                if e.get() == ex:
+                    e.delete(0, tk.END)
+                    e.config(foreground='black')
+            
+            def on_focus_out(event, e=entry, ex=param.get('example', '')):
+                if not e.get():
+                    e.insert(0, ex)
+                    e.config(foreground='gray')
+            
+            entry.bind('<FocusIn>', on_focus_in)
+            entry.bind('<FocusOut>', on_focus_out)
+            
+            entries.append((param, entry))
+        
+        params_frame.columnconfigure(0, weight=1)
+        
+        # Info label
+        info_frame = ttk.Frame(dialog, padding="10")
+        info_frame.pack(fill=tk.X)
+        
+        ttk.Label(
+            info_frame,
+            text="* Required parameters. Leave optional parameters empty to use default.",
+            foreground="blue",
+            font=("Arial", 9, "italic")
+        ).pack()
+        
+        # Buttons
+        button_frame = ttk.Frame(dialog, padding="10")
+        button_frame.pack(fill=tk.X)
+        
+        result = {"ok": False, "params": []}
+        
+        def on_ok():
+            params = []
+            error_msgs = []
+            
+            for param_def, entry in entries:
+                value = entry.get()
+                
+                # Check if it's still the placeholder
+                if value == param_def.get('example', ''):
+                    value = ""
+                
+                # Validate required parameters
+                if param_def['required'] and not value:
+                    error_msgs.append(f"- {param_def['prompt']} is required")
+                    continue
+                
+                # Use default if empty and not required
+                if not value and not param_def['required']:
+                    value = param_def.get('default', '')
+                
+                # Only add non-empty values to params
+                if value:
+                    # Special handling for cleanup.sh flags
+                    if 'dry_run' in param_def['name']:
+                        if value.lower() in ['yes', 'y', '1', 'true']:
+                            params.append('--dry-run')
+                    elif 'days' in param_def['name'] and 'cleanup.sh' in str(script_path):
+                        if value:
+                            params.extend(['--days', value])
+                    else:
+                        params.append(value)
+            
+            if error_msgs:
+                messagebox.showerror(
+                    "Missing Required Parameters",
+                    "Please fill in the required parameters:\n\n" + "\n".join(error_msgs),
+                    parent=dialog
+                )
+                return
+            
+            result["ok"] = True
+            result["params"] = params
+            dialog.destroy()
+        
+        def on_cancel():
+            result["ok"] = False
+            dialog.destroy()
+        
+        ok_btn = ttk.Button(button_frame, text="OK", command=on_ok, width=15)
+        ok_btn.pack(side=tk.LEFT, padx=5)
+        
+        cancel_btn = ttk.Button(button_frame, text="Cancel", command=on_cancel, width=15)
+        cancel_btn.pack(side=tk.LEFT, padx=5)
+        
+        # Wait for dialog to close
+        self.root.wait_window(dialog)
+        
+        return result["params"] if result["ok"] else None
         
     def setup_ui(self):
         """Thiết lập giao diện người dùng"""
@@ -667,15 +829,31 @@ class KernelLinuxGUI:
         # Đảm bảo script có quyền thực thi
         os.chmod(script_path, 0o755)
         
+        # Collect parameters if script needs them
+        script_params = []
+        rel_path = str(script_path.relative_to(self.project_root))
+        if rel_path in self.script_params:
+            script_params = self.collect_script_parameters(script_path)
+            if script_params is None:  # User cancelled
+                self.log_terminal(f"Đã hủy: {script_path.name}\n")
+                return
+        
         self.log_terminal(f"\n{'='*60}\n")
         self.log_terminal(f"Đang chạy: {script_path.name}\n")
         self.log_terminal(f"Đường dẫn: {script_path}\n")
+        if script_params:
+            self.log_terminal(f"Parameters: {' '.join(script_params)}\n")
         self.log_terminal(f"{'='*60}\n\n")
+        
+        # Build command with parameters
+        command = ["bash", str(script_path)]
+        if script_params:
+            command.extend(script_params)
         
         # Chạy trong thread riêng
         thread = threading.Thread(
             target=self._run_command,
-            args=(["bash", str(script_path)], script_path.parent),
+            args=(command, script_path.parent),
             daemon=True
         )
         thread.start()
@@ -689,17 +867,34 @@ class KernelLinuxGUI:
         # Đảm bảo script có quyền thực thi
         os.chmod(script_path, 0o755)
         
+        # Collect parameters if script needs them
+        script_params = []
+        rel_path = str(script_path.relative_to(self.project_root))
+        if rel_path in self.script_params:
+            script_params = self.collect_script_parameters(script_path)
+            if script_params is None:  # User cancelled
+                self.log_terminal(f"Đã hủy: {script_path.name}\n")
+                return
+        
         self.log_terminal(f"\n{'='*60}\n")
         self.log_terminal(f"Đang chạy với sudo: {script_path.name}\n")
         self.log_terminal(f"Đường dẫn: {script_path}\n")
+        if script_params:
+            self.log_terminal(f"Parameters: {' '.join(script_params)}\n")
         self.log_terminal(f"{'='*60}\n\n")
+        
+        # Build command with parameters
+        command = ["sudo", "bash", str(script_path)]
+        if script_params:
+            command.extend(script_params)
         
         # Chạy với sudo trong thread riêng
         thread = threading.Thread(
             target=self._run_command,
-            args=(["sudo", "bash", str(script_path)], script_path.parent),
+            args=(command, script_path.parent),
             daemon=True
         )
+        thread.start()
         thread.start()
     
     def run_executable(self, exe_path):
