@@ -18,8 +18,8 @@ import fcntl
 class KernelLinuxGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Kernel Linux - Quản Lý Dự Án")
-        self.root.geometry("1200x800")
+        self.root.title("Kernel Linux")
+        self.root.geometry("1400x900")
         
         # Đường dẫn gốc dự án
         self.project_root = Path(__file__).parent.parent
@@ -39,58 +39,50 @@ class KernelLinuxGUI:
         
     def setup_ui(self):
         """Thiết lập giao diện người dùng"""
-        # Main container
-        main_container = ttk.Frame(self.root, padding="10")
+        # Main container với layout dọc
+        main_container = ttk.Frame(self.root, padding="5")
         main_container.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
         # Cấu hình grid weight
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
         main_container.columnconfigure(0, weight=1)
-        main_container.rowconfigure(1, weight=3)
-        main_container.rowconfigure(3, weight=2)
+        main_container.columnconfigure(1, weight=4)
+        main_container.rowconfigure(0, weight=1)
         
-        # Title
-        title_label = ttk.Label(
-            main_container, 
-            text="Kernel Linux - Quản Lý Dự Án",
-            font=("Arial", 16, "bold")
-        )
-        title_label.grid(row=0, column=0, pady=(0, 10), sticky=tk.W)
+        # Panel bên trái cho controls (1/5 width)
+        left_panel = ttk.Frame(main_container, padding="5")
+        left_panel.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        left_panel.columnconfigure(0, weight=1)
+        left_panel.rowconfigure(0, weight=1)
         
-        # Notebook cho 3 tabs
-        self.notebook = ttk.Notebook(main_container)
-        self.notebook.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
+        # Notebook cho 3 tabs trong left panel
+        self.notebook = ttk.Notebook(left_panel)
+        self.notebook.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
         # Tạo 3 tabs
         self.shell_frame = ttk.Frame(self.notebook)
         self.system_frame = ttk.Frame(self.notebook)
         self.smp_frame = ttk.Frame(self.notebook)
         
-        self.notebook.add(self.shell_frame, text="Shell Scripting")
-        self.notebook.add(self.system_frame, text="System Programming")
-        self.notebook.add(self.smp_frame, text="SMP Programming")
+        self.notebook.add(self.shell_frame, text="Shell")
+        self.notebook.add(self.system_frame, text="System")
+        self.notebook.add(self.smp_frame, text="SMP")
         
         # Thiết lập nội dung cho từng tab
         self.setup_shell_tab()
         self.setup_system_tab()
         self.setup_smp_tab()
         
-        # Separator
-        ttk.Separator(main_container, orient=tk.HORIZONTAL).grid(
-            row=2, column=0, sticky=(tk.W, tk.E), pady=5
-        )
+        # Panel bên phải cho terminal (4/5 width)
+        right_panel = ttk.Frame(main_container, padding="5")
+        right_panel.grid(row=0, column=1, sticky=(tk.W, tk.E, tk.N, tk.S))
+        right_panel.columnconfigure(0, weight=1)
+        right_panel.rowconfigure(0, weight=1)
         
-        # Terminal frame
-        terminal_label = ttk.Label(
-            main_container,
-            text="Terminal Output (Realtime)",
-            font=("Arial", 12, "bold")
-        )
-        terminal_label.grid(row=3, column=0, sticky=tk.W)
-        
-        terminal_container = ttk.Frame(main_container)
-        terminal_container.grid(row=4, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        # Terminal container
+        terminal_container = ttk.Frame(right_panel)
+        terminal_container.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         terminal_container.columnconfigure(0, weight=1)
         terminal_container.rowconfigure(0, weight=1)
         
@@ -111,26 +103,35 @@ class KernelLinuxGUI:
         input_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(5, 0))
         input_frame.columnconfigure(0, weight=1)
         
-        ttk.Label(input_frame, text="Input:").grid(row=0, column=0, sticky=tk.W)
-        
         self.terminal_input = ttk.Entry(input_frame)
-        self.terminal_input.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(5, 5))
+        self.terminal_input.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 5))
         self.terminal_input.bind("<Return>", self.send_input)
+        self.terminal_input.bind("<Control-c>", self.send_ctrl_c)
         
-        send_btn = ttk.Button(input_frame, text="Gửi", command=self.send_input)
-        send_btn.grid(row=0, column=2, sticky=tk.E)
+        send_btn = ttk.Button(input_frame, text="Enter", command=self.send_input, width=8)
+        send_btn.grid(row=0, column=1, sticky=tk.E)
+        
+        ctrl_c_btn = ttk.Button(
+            input_frame, 
+            text="Ctrl+C", 
+            command=self.send_ctrl_c,
+            width=8
+        )
+        ctrl_c_btn.grid(row=0, column=2, sticky=tk.E, padx=(5, 0))
         
         stop_btn = ttk.Button(
             input_frame, 
-            text="Dừng Process", 
-            command=self.stop_process
+            text="Dừng", 
+            command=self.stop_process,
+            width=8
         )
         stop_btn.grid(row=0, column=3, sticky=tk.E, padx=(5, 0))
         
         clear_btn = ttk.Button(
             input_frame,
-            text="Xóa Terminal",
-            command=self.clear_terminal
+            text="Xóa",
+            command=self.clear_terminal,
+            width=8
         )
         clear_btn.grid(row=0, column=4, sticky=tk.E, padx=(5, 0))
     
@@ -703,7 +704,18 @@ class KernelLinuxGUI:
         """Gửi input đến process đang chạy"""
         input_text = self.terminal_input.get()
         
+        # Nếu input trống, chỉ gửi Enter
         if not input_text:
+            with self.process_lock:
+                if self.current_process and self.current_process.poll() is None:
+                    try:
+                        self.current_process.stdin.write('\n')
+                        self.current_process.stdin.flush()
+                        self.log_terminal("\n")
+                    except Exception as e:
+                        self.log_terminal(f"Lỗi khi gửi Enter: {e}\n")
+                else:
+                    self.log_terminal("Không có process nào đang chạy\n")
             return
         
         with self.process_lock:
@@ -715,6 +727,19 @@ class KernelLinuxGUI:
                     self.terminal_input.delete(0, tk.END)
                 except Exception as e:
                     self.log_terminal(f"Lỗi khi gửi input: {e}\n")
+            else:
+                self.log_terminal("Không có process nào đang chạy\n")
+    
+    def send_ctrl_c(self, event=None):
+        """Gửi tín hiệu Ctrl+C đến process đang chạy"""
+        with self.process_lock:
+            if self.current_process and self.current_process.poll() is None:
+                try:
+                    import signal
+                    self.log_terminal("\n[Gửi Ctrl+C...]\n")
+                    self.current_process.send_signal(signal.SIGINT)
+                except Exception as e:
+                    self.log_terminal(f"Lỗi khi gửi Ctrl+C: {e}\n")
             else:
                 self.log_terminal("Không có process nào đang chạy\n")
     
