@@ -9,7 +9,7 @@ obj-m += skbuff_demo.o
 obj-m += tcp_steganography.o
 
 # User-space programs
-USER_TARGETS = stego_reader
+USER_TARGETS = stego_reader network_manager
 
 .PHONY: all modules user clean help test
 
@@ -26,6 +26,10 @@ user: $(USER_TARGETS)
 stego_reader: stego_reader.c
 	$(CC) $(CFLAGS) -o $@ $<
 	@echo "Build user-space program thành công: $@"
+
+network_manager: network_manager.c
+	$(CC) $(CFLAGS) -o $@ $<
+	@echo "Build network_manager thành công"
 
 clean:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
@@ -47,7 +51,13 @@ help:
 	@echo ""
 	@echo "Kernel Modules:"
 	@echo "  loopback_driver.ko          - Loopback network driver (Slide 13.1)"
-	@echo "  http_password_detector.ko   - HTTP password detector (Slide 13.2)"
+	@echo "  skbuff_demo.ko              - Socket buffer demonstration"
+	@echo "  tcp_steganography.ko        - TCP steganography module"
+	@echo ""
+	@echo "User-space Programs:"
+	@echo "  stego_reader                - Đọc hidden data từ TCP packets"
+	@echo "  network_manager             - Quản lý mạng user-space"
+	@echo ""
 	@echo "  skbuff_demo.ko              - sk_buff demo (Slide 7-8)"
 	@echo "  tcp_steganography.ko        - TCP/UDP steganography (ẩn tin trong packets)"
 	@echo ""
