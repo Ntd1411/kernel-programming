@@ -480,6 +480,51 @@ class KernelLinuxGUI:
                         }
                     ]
                 }
+            },
+            "system/socket/tcp_server": {
+                "needs_sudo": False,
+                "params": [
+                    {"name": "port", "prompt": "Port number to bind", "example": "8080", "required": True}
+                ]
+            },
+            "system/socket/tcp_client": {
+                "needs_sudo": False,
+                "params": [
+                    {"name": "host", "prompt": "Server hostname or IP", "example": "localhost", "required": True},
+                    {"name": "port", "prompt": "Server port number", "example": "8080", "required": True}
+                ]
+            },
+            "system/socket/udp_server": {
+                "needs_sudo": False,
+                "params": [
+                    {"name": "port", "prompt": "Port number to bind", "example": "9090", "required": True}
+                ]
+            },
+            "system/socket/udp_client": {
+                "needs_sudo": False,
+                "params": [
+                    {"name": "host", "prompt": "Server hostname or IP", "example": "localhost", "required": True},
+                    {"name": "port", "prompt": "Server port number", "example": "9090", "required": True}
+                ]
+            },
+            "system/socket/echo_server": {
+                "needs_sudo": False,
+                "params": [
+                    {"name": "port", "prompt": "Port number to bind", "example": "7777", "required": True}
+                ]
+            },
+            "system/socket/echo_client": {
+                "needs_sudo": False,
+                "params": [
+                    {"name": "host", "prompt": "Server hostname or IP", "example": "localhost", "required": True},
+                    {"name": "port", "prompt": "Server port number", "example": "7777", "required": True}
+                ]
+            },
+            "system/network/stego_reader": {
+                "needs_sudo": True,
+                "params": [
+                    {"name": "interface", "prompt": "Network interface to monitor", "example": "eth0", "required": True}
+                ]
             }
         }
     
