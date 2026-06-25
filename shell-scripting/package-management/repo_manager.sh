@@ -30,15 +30,29 @@ list_repositories_apt() {
     log_message "Listing APT repositories"
     
     echo "=== Main repositories ==="
-    grep -E "^deb " /etc/apt/sources.list | grep -v "^#"
+    # Kiểm tra nếu dùng định dạng mới DEB822 (Ubuntu 24.04+)
+    if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
+        grep -E "^URIs:|^Suites:|^Components:" /etc/apt/sources.list.d/ubuntu.sources
+    # Nếu là Ubuntu đời cũ dùng sources.list truyền thống
+    elif [ -f /etc/apt/sources.list ]; then
+        grep -E "^deb " /etc/apt/sources.list | grep -v "^#"
+    else
+        echo "No main repository file found."
+    fi
     
     echo ""
     echo "=== Additional repositories ==="
     if [ -d /etc/apt/sources.list.d/ ]; then
-        for file in /etc/apt/sources.list.d/*.list; do
-            if [ -f "$file" ]; then
+        # Thêm kiểm tra loại trừ file ubuntu.sources của hệ thống ra
+        for file in /etc/apt/sources.list.d/*; do
+            if [ -f "$file" ] && [ "$file" != "/etc/apt/sources.list.d/ubuntu.sources" ]; then
                 echo "File: $file"
-                grep -E "^deb " "$file" | grep -v "^#"
+                # Quét cho cả file .list truyền thống và file .sources cấu hình mới
+                if [[ "$file" == *.sources ]]; then
+                    grep -E "^URIs:" "$file"
+                else
+                    grep -E "^deb " "$file" | grep -v "^#"
+                fi
                 echo ""
             fi
         done
