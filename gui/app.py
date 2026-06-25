@@ -696,6 +696,152 @@ class KernelLinuxGUI:
         
         return result["params"] if result["ok"] else None
     
+    def collect_executable_parameters(self, exe_path, param_defs):
+        """Thu thập parameters từ người dùng cho executable"""
+        # If no parameters needed, skip dialog
+        if not param_defs:
+            return []
+        
+        # Create parameter collection dialog
+        dialog = tk.Toplevel(self.root)
+        dialog.title(f"Parameters - {exe_path.name}")
+        dialog.geometry("600x400")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        # Center dialog
+        dialog.update_idletasks()
+        x = (dialog.winfo_screenwidth() // 2) - (300)
+        y = (dialog.winfo_screenheight() // 2) - (200)
+        dialog.geometry(f"+{x}+{y}")
+        
+        # Title
+        title_frame = ttk.Frame(dialog, padding="10")
+        title_frame.pack(fill=tk.X)
+        
+        ttk.Label(
+            title_frame,
+            text=f"Enter parameters for: {exe_path.name}",
+            font=("Arial", 12, "bold")
+        ).pack()
+        
+        # Parameters frame with scrollbar
+        canvas = tk.Canvas(dialog)
+        scrollbar = ttk.Scrollbar(dialog, orient="vertical", command=canvas.yview)
+        params_frame = ttk.Frame(canvas)
+        
+        params_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=params_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side="left", fill="both", expand=True, padx=10)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Create input fields
+        entries = []
+        for idx, param in enumerate(param_defs):
+            # Label
+            label_text = f"{param['prompt']}"
+            if param.get('required', False):
+                label_text += " *"
+            
+            label = ttk.Label(params_frame, text=label_text)
+            label.grid(row=idx*2, column=0, sticky=tk.W, pady=(5, 0), padx=5)
+            
+            # Entry with example placeholder
+            entry = ttk.Entry(params_frame, width=50)
+            entry.grid(row=idx*2+1, column=0, sticky=(tk.W, tk.E), pady=(0, 10), padx=5)
+            entry.insert(0, param.get('example', ''))
+            entry.config(foreground='gray')
+            
+            # Bind events to handle placeholder
+            def on_focus_in(event, e=entry, ex=param.get('example', '')):
+                if e.get() == ex:
+                    e.delete(0, tk.END)
+                    e.config(foreground='black')
+            
+            def on_focus_out(event, e=entry, ex=param.get('example', '')):
+                if not e.get():
+                    e.insert(0, ex)
+                    e.config(foreground='gray')
+            
+            entry.bind('<FocusIn>', on_focus_in)
+            entry.bind('<FocusOut>', on_focus_out)
+            
+            entries.append((param, entry))
+        
+        params_frame.columnconfigure(0, weight=1)
+        
+        # Calculate next row after all entries
+        row = len(param_defs) * 2
+        
+        # Info label
+        ttk.Label(
+            params_frame,
+            text="* Required parameters",
+            foreground="blue",
+            font=("Arial", 9, "italic")
+        ).grid(row=row, column=0, sticky=tk.W, pady=(10, 5), padx=5)
+        
+        row += 1
+        
+        # Buttons
+        button_container = ttk.Frame(params_frame)
+        button_container.grid(row=row, column=0, sticky=tk.W, pady=(5, 10), padx=5)
+        
+        result = {"ok": False, "params": []}
+        
+        def on_ok():
+            params = []
+            error_msgs = []
+            
+            for param_def, entry in entries:
+                # Check if it's still the placeholder
+                if entry.cget('foreground') == 'gray':
+                    value = ""
+                else:
+                    value = entry.get()
+                
+                # Validate required parameters
+                if param_def.get('required', False) and not value:
+                    error_msgs.append(f"- {param_def['prompt']} is required")
+                    continue
+                
+                # Only add non-empty values
+                if value:
+                    params.append(value)
+            
+            if error_msgs:
+                messagebox.showerror(
+                    "Missing Required Parameters",
+                    "Please fill in the required parameters:\n\n" + "\n".join(error_msgs),
+                    parent=dialog
+                )
+                return
+            
+            result["ok"] = True
+            result["params"] = params
+            dialog.destroy()
+        
+        def on_cancel():
+            result["ok"] = False
+            dialog.destroy()
+        
+        ok_btn = ttk.Button(button_container, text="OK", command=on_ok, width=15)
+        ok_btn.pack(side=tk.LEFT, padx=5)
+        
+        cancel_btn = ttk.Button(button_container, text="Cancel", command=on_cancel, width=15)
+        cancel_btn.pack(side=tk.LEFT, padx=5)
+        
+        # Wait for dialog to close
+        self.root.wait_window(dialog)
+        
+        return result["params"] if result["ok"] else None
+    
     def collect_script_choice(self, script_path, choice_config):
         """Show dialog with radio buttons for choosing script operation mode
         
@@ -1548,6 +1694,13 @@ class KernelLinuxGUI:
                     if flag:
                         command_args.append(flag)
                     command_args.extend(params)
+            elif "params" in config:
+                # Collect simple parameters
+                params = self.collect_executable_parameters(exe_path, config["params"])
+                if params is None:  # User cancelled
+                    return
+                command_args = [str(exe_path)]
+                command_args.extend(params)
         
         # Add sudo if needed
         if needs_sudo:
