@@ -72,11 +72,12 @@ void display_menu(void)
     printf("  %s4.%s Tắt interface (bring down)\n", COLOR_BOLD, COLOR_RESET);
     printf("  %s5.%s Thêm địa chỉ IP\n", COLOR_BOLD, COLOR_RESET);
     printf("  %s6.%s Xóa địa chỉ IP\n", COLOR_BOLD, COLOR_RESET);
-    printf("  %s7.%s Giám sát traffic real-time\n", COLOR_BOLD, COLOR_RESET);
-    printf("  %s8.%s Ping test\n", COLOR_BOLD, COLOR_RESET);
-    printf("  %s9.%s Hiển thị routing table\n", COLOR_BOLD, COLOR_RESET);
-    printf("  %s10.%s DNS lookup\n", COLOR_BOLD, COLOR_RESET);
-    printf("  %s11.%s Hiển thị socket statistics\n", COLOR_BOLD, COLOR_RESET);
+    printf("  %s7.%s Liệt kê tất cả IP của interface\n", COLOR_BOLD, COLOR_RESET);
+    printf("  %s8.%s Giám sát traffic real-time\n", COLOR_BOLD, COLOR_RESET);
+    printf("  %s9.%s Ping test\n", COLOR_BOLD, COLOR_RESET);
+    printf("  %s10.%s Hiển thị routing table\n", COLOR_BOLD, COLOR_RESET);
+    printf("  %s11.%s DNS lookup\n", COLOR_BOLD, COLOR_RESET);
+    printf("  %s12.%s Hiển thị socket statistics\n", COLOR_BOLD, COLOR_RESET);
     printf("  %s0.%s Thoát\n", COLOR_BOLD, COLOR_RESET);
     printf("\n");
     printf("Chọn chức năng: ");
@@ -462,6 +463,27 @@ void bring_interface_down(void)
     close(sock);
 }
 
+/* Chuyển netmask thành prefix length */
+int netmask_to_prefix(const char *netmask)
+{
+    struct in_addr addr;
+    unsigned int mask;
+    int prefix = 0;
+    
+    if (inet_pton(AF_INET, netmask, &addr) != 1) {
+        return -1;
+    }
+    
+    mask = ntohl(addr.s_addr);
+    
+    while (mask) {
+        prefix += mask & 1;
+        mask >>= 1;
+    }
+    
+    return prefix;
+}
+
 /* Thêm địa chỉ IP */
 void add_ip_address(void)
 {
@@ -469,6 +491,7 @@ void add_ip_address(void)
     char ip[INET_ADDRSTRLEN];
     char netmask[INET_ADDRSTRLEN];
     char cmd[256];
+    int prefix;
     
     printf("\nNhập tên interface: ");
     scanf("%s", ifname);
@@ -476,12 +499,30 @@ void add_ip_address(void)
     printf("Nhập địa chỉ IP: ");
     scanf("%s", ip);
     
-    printf("Nhập netmask (ví dụ: 255.255.255.0): ");
+    printf("Nhập prefix length (8-32) hoặc netmask (255.255.255.0): ");
     scanf("%s", netmask);
     
-    /* Sử dụng lệnh ip để thêm địa chỉ */
-    snprintf(cmd, sizeof(cmd), "ip addr add %s/%s dev %s 2>&1",
-             ip, netmask, ifname);
+    /* Kiểm tra netmask là số hay dạng dotted decimal */
+    if (strchr(netmask, '.')) {
+        /* Dạng 255.255.255.0 - chuyển sang prefix */
+        prefix = netmask_to_prefix(netmask);
+        if (prefix < 0) {
+            printf("%sNetmask không hợp lệ%s\n", COLOR_RED, COLOR_RESET);
+            return;
+        }
+    } else {
+        /* Dạng số 24 */
+        prefix = atoi(netmask);
+        if (prefix < 0 || prefix > 32) {
+            printf("%sPrefix length không hợp lệ (phải từ 0-32)%s\n", 
+                   COLOR_RED, COLOR_RESET);
+            return;
+        }
+    }
+    
+    /* Sử dụng lệnh ip với CIDR notation */
+    snprintf(cmd, sizeof(cmd), "ip addr add %s/%d dev %s 2>&1",
+             ip, prefix, ifname);
     
     printf("\nĐang thêm địa chỉ IP...\n");
     
@@ -491,18 +532,24 @@ void add_ip_address(void)
         int has_error = 0;
         
         while (fgets(output, sizeof(output), fp)) {
-            printf("%s", output);
-            has_error = 1;
+            /* Kiểm tra nếu là lỗi thật sự, không phải warning */
+            if (strstr(output, "RTNETLINK answers:") || 
+                strstr(output, "Cannot assign") ||
+                strstr(output, "Error")) {
+                printf("%s%s%s", COLOR_RED, output, COLOR_RESET);
+                has_error = 1;
+            }
         }
         
         int status = pclose(fp);
         
         if (status == 0 && !has_error) {
-            printf("%sĐã thêm IP %s vào interface '%s' thành công%s\n",
-                   COLOR_GREEN, ip, ifname, COLOR_RESET);
+            printf("%sĐã thêm IP %s/%d vào interface '%s' thành công%s\n",
+                   COLOR_GREEN, ip, prefix, ifname, COLOR_RESET);
         } else {
             printf("%sLỗi thêm địa chỉ IP%s\n", COLOR_RED, COLOR_RESET);
-            printf("%sGợi ý: Chạy với quyền root (sudo)%s\n", COLOR_YELLOW, COLOR_RESET);
+            printf("%sGợi ý: Chạy với quyền root (sudo) hoặc IP đã tồn tại%s\n", 
+                   COLOR_YELLOW, COLOR_RESET);
         }
     } else {
         printf("%sLỗi thực thi lệnh%s\n", COLOR_RED, COLOR_RESET);
@@ -513,19 +560,40 @@ void add_ip_address(void)
 void remove_ip_address(void)
 {
     char ifname[IFNAMSIZ];
-    char ip[INET_ADDRSTRLEN];
+    char ip_input[64];
     char cmd[256];
+    char ip[INET_ADDRSTRLEN];
+    int prefix = 32;  /* Mặc định /32 cho single host */
     
     printf("\nNhập tên interface: ");
     scanf("%s", ifname);
     
-    printf("Nhập địa chỉ IP cần xóa: ");
-    scanf("%s", ip);
+    printf("Nhập địa chỉ IP cần xóa (có thể kèm /prefix, ví dụ: 1.1.1.1/24): ");
+    scanf("%s", ip_input);
     
-    /* Sử dụng lệnh ip để xóa địa chỉ */
-    snprintf(cmd, sizeof(cmd), "ip addr del %s dev %s 2>&1", ip, ifname);
+    /* Tách IP và prefix nếu có */
+    char *slash = strchr(ip_input, '/');
+    if (slash) {
+        /* Có prefix trong input */
+        *slash = '\0';
+        strncpy(ip, ip_input, INET_ADDRSTRLEN - 1);
+        prefix = atoi(slash + 1);
+        
+        if (prefix < 0 || prefix > 32) {
+            printf("%sPrefix length không hợp lệ (phải từ 0-32)%s\n", 
+                   COLOR_RED, COLOR_RESET);
+            return;
+        }
+    } else {
+        /* Không có prefix - mặc định /32 */
+        strncpy(ip, ip_input, INET_ADDRSTRLEN - 1);
+    }
     
-    printf("\nĐang xóa địa chỉ IP...\n");
+    /* Sử dụng lệnh ip với CIDR notation rõ ràng */
+    snprintf(cmd, sizeof(cmd), "ip addr del %s/%d dev %s 2>&1", 
+             ip, prefix, ifname);
+    
+    printf("\nĐang xóa địa chỉ IP %s/%d...\n", ip, prefix);
     
     FILE *fp = popen(cmd, "r");
     if (fp) {
@@ -533,20 +601,137 @@ void remove_ip_address(void)
         int has_error = 0;
         
         while (fgets(output, sizeof(output), fp)) {
-            printf("%s", output);
-            has_error = 1;
+            /* Bỏ qua warning về wildcard deletion */
+            if (strstr(output, "wildcard deletion") || 
+                strstr(output, "fix your scripts")) {
+                continue;
+            }
+            
+            /* Chỉ hiển thị lỗi thật sự */
+            if (strstr(output, "RTNETLINK answers:") || 
+                strstr(output, "Cannot") ||
+                strstr(output, "Error")) {
+                printf("%s%s%s", COLOR_RED, output, COLOR_RESET);
+                has_error = 1;
+            }
         }
         
         int status = pclose(fp);
         
         if (status == 0 && !has_error) {
-            printf("%sĐã xóa IP %s khỏi interface '%s' thành công%s\n",
-                   COLOR_GREEN, ip, ifname, COLOR_RESET);
+            printf("%sĐã xóa IP %s/%d khỏi interface '%s' thành công%s\n",
+                   COLOR_GREEN, ip, prefix, ifname, COLOR_RESET);
         } else {
             printf("%sLỗi xóa địa chỉ IP%s\n", COLOR_RED, COLOR_RESET);
+            printf("%sGợi ý: Chạy với quyền root (sudo) hoặc IP không tồn tại%s\n", 
+                   COLOR_YELLOW, COLOR_RESET);
         }
     } else {
         printf("%sLỗi thực thi lệnh%s\n", COLOR_RED, COLOR_RESET);
+    }
+}
+
+/* Liệt kê tất cả địa chỉ IP của interface */
+void list_interface_ips(void)
+{
+    char ifname[IFNAMSIZ];
+    char cmd[256];
+    FILE *fp;
+    char line[512];
+    int ip_count = 0;
+    
+    printf("\nNhập tên interface: ");
+    scanf("%s", ifname);
+    
+    printf("\n%s=== TẤT CẢ ĐỊA CHỈ IP CỦA INTERFACE: %s ===%s\n\n", 
+           COLOR_BOLD, ifname, COLOR_RESET);
+    
+    /* Sử dụng lệnh ip addr show để lấy tất cả IP */
+    snprintf(cmd, sizeof(cmd), "ip addr show %s 2>&1", ifname);
+    
+    fp = popen(cmd, "r");
+    if (!fp) {
+        printf("%sLỗi thực thi lệnh%s\n", COLOR_RED, COLOR_RESET);
+        return;
+    }
+    
+    printf("%-5s %-20s %-20s %-10s\n", "STT", "IP ADDRESS", "NETMASK/PREFIX", "TYPE");
+    printf("%-5s %-20s %-20s %-10s\n", "---", "----------", "--------------", "----");
+    
+    while (fgets(line, sizeof(line), fp)) {
+        /* Tìm dòng chứa inet hoặc inet6 */
+        if (strstr(line, "inet ") || strstr(line, "inet6 ")) {
+            char ip[64], prefix[16], scope[32];
+            char *type;
+            
+            /* Parse IPv4 */
+            if (sscanf(line, " inet %s", ip) == 1) {
+                type = "IPv4";
+                ip_count++;
+                
+                /* Tách IP và prefix */
+                char *slash = strchr(ip, '/');
+                if (slash) {
+                    *slash = '\0';
+                    strncpy(prefix, slash + 1, sizeof(prefix) - 1);
+                } else {
+                    strncpy(prefix, "32", sizeof(prefix) - 1);
+                }
+                
+                /* Lấy scope nếu có */
+                if (strstr(line, "scope global")) {
+                    strncpy(scope, "global", sizeof(scope) - 1);
+                } else if (strstr(line, "scope host")) {
+                    strncpy(scope, "host", sizeof(scope) - 1);
+                } else if (strstr(line, "scope link")) {
+                    strncpy(scope, "link", sizeof(scope) - 1);
+                } else {
+                    strncpy(scope, "unknown", sizeof(scope) - 1);
+                }
+                
+                printf("%s%-5d%s %-20s %-20s %-10s\n", 
+                       COLOR_GREEN, ip_count, COLOR_RESET,
+                       ip, prefix, scope);
+            }
+            /* Parse IPv6 */
+            else if (sscanf(line, " inet6 %s", ip) == 1) {
+                type = "IPv6";
+                ip_count++;
+                
+                /* Tách IP và prefix */
+                char *slash = strchr(ip, '/');
+                if (slash) {
+                    *slash = '\0';
+                    strncpy(prefix, slash + 1, sizeof(prefix) - 1);
+                } else {
+                    strncpy(prefix, "128", sizeof(prefix) - 1);
+                }
+                
+                /* Lấy scope nếu có */
+                if (strstr(line, "scope global")) {
+                    strncpy(scope, "global", sizeof(scope) - 1);
+                } else if (strstr(line, "scope host")) {
+                    strncpy(scope, "host", sizeof(scope) - 1);
+                } else if (strstr(line, "scope link")) {
+                    strncpy(scope, "link", sizeof(scope) - 1);
+                } else {
+                    strncpy(scope, "unknown", sizeof(scope) - 1);
+                }
+                
+                printf("%s%-5d%s %-20s %-20s %-10s\n", 
+                       COLOR_CYAN, ip_count, COLOR_RESET,
+                       ip, prefix, scope);
+            }
+        }
+    }
+    
+    pclose(fp);
+    
+    if (ip_count == 0) {
+        printf("\n%sInterface '%s' không có địa chỉ IP nào hoặc không tồn tại%s\n",
+               COLOR_YELLOW, ifname, COLOR_RESET);
+    } else {
+        printf("\n%sTổng số: %d địa chỉ IP%s\n", COLOR_BOLD, ip_count, COLOR_RESET);
     }
 }
 
@@ -822,22 +1007,26 @@ int main(int argc, char *argv[])
                 break;
                 
             case 7:
-                monitor_traffic();
+                list_interface_ips();
                 break;
                 
             case 8:
-                ping_test();
+                monitor_traffic();
                 break;
                 
             case 9:
-                show_routing_table();
+                ping_test();
                 break;
                 
             case 10:
-                dns_lookup();
+                show_routing_table();
                 break;
                 
             case 11:
+                dns_lookup();
+                break;
+                
+            case 12:
                 show_socket_stats();
                 break;
                 
@@ -846,7 +1035,7 @@ int main(int argc, char *argv[])
                 return 0;
                 
             default:
-                printf("%sLựa chọn không hợp lệ. Vui lòng chọn 0-11%s\n",
+                printf("%sLựa chọn không hợp lệ. Vui lòng chọn 0-12%s\n",
                        COLOR_RED, COLOR_RESET);
         }
         
