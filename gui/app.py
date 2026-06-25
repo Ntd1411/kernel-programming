@@ -1198,36 +1198,53 @@ class KernelLinuxGUI:
                     ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
                     row += 1
                 
-                # Liệt kê các file C
-                c_files = sorted(module_path.glob("*.c"))
-                for c_file in c_files:
-                    exe_name = c_file.stem
-                    exe_path = module_path / exe_name
-                    
-                    # Kiểm tra xem file có cần sudo không
-                    file_needs_sudo = needs_sudo or (module_dir in files_need_sudo and exe_name in files_need_sudo[module_dir])
-                    
-                    if has_auto_test:
-                        # Tìm test script tương ứng
-                        test_script = module_path / f"test_{exe_name}.sh"
-                        if test_script.exists():
-                            if file_needs_sudo:
-                                ttk.Button(
-                                    scrollable_frame,
-                                    text=f"{exe_name} (sudo)",
-                                    command=lambda p=test_script: self.run_shell_script_sudo(p),
-                                    width=20
-                                ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
+                # Liệt kê các file C (skip network - có xử lý riêng)
+                if module_dir != "network":
+                    c_files = sorted(module_path.glob("*.c"))
+                    for c_file in c_files:
+                        exe_name = c_file.stem
+                        exe_path = module_path / exe_name
+                        
+                        # Kiểm tra xem file có cần sudo không
+                        file_needs_sudo = needs_sudo or (module_dir in files_need_sudo and exe_name in files_need_sudo[module_dir])
+                        
+                        if has_auto_test:
+                            # Tìm test script tương ứng
+                            test_script = module_path / f"test_{exe_name}.sh"
+                            if test_script.exists():
+                                if file_needs_sudo:
+                                    ttk.Button(
+                                        scrollable_frame,
+                                        text=f"{exe_name} (sudo)",
+                                        command=lambda p=test_script: self.run_shell_script_sudo(p),
+                                        width=20
+                                    ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
+                                else:
+                                    ttk.Button(
+                                        scrollable_frame,
+                                        text=exe_name,
+                                        command=lambda p=test_script: self.run_shell_script(p),
+                                        width=20
+                                    ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
+                                row += 1
                             else:
-                                ttk.Button(
-                                    scrollable_frame,
-                                    text=exe_name,
-                                    command=lambda p=test_script: self.run_shell_script(p),
-                                    width=20
-                                ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
-                            row += 1
+                                # Không có test script, chạy executable
+                                if file_needs_sudo:
+                                    ttk.Button(
+                                        scrollable_frame,
+                                        text=f"{exe_name} (sudo)",
+                                        command=lambda p=exe_path: self.run_executable_sudo(p),
+                                        width=20
+                                    ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
+                                else:
+                                    ttk.Button(
+                                        scrollable_frame,
+                                        text=exe_name,
+                                        command=lambda p=exe_path: self.run_executable(p),
+                                        width=20
+                                    ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
+                                row += 1
                         else:
-                            # Không có test script, chạy executable
                             if file_needs_sudo:
                                 ttk.Button(
                                     scrollable_frame,
@@ -1243,22 +1260,6 @@ class KernelLinuxGUI:
                                     width=20
                                 ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
                             row += 1
-                    else:
-                        if file_needs_sudo:
-                            ttk.Button(
-                                scrollable_frame,
-                                text=f"{exe_name} (sudo)",
-                                command=lambda p=exe_path: self.run_executable_sudo(p),
-                                width=20
-                            ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
-                        else:
-                            ttk.Button(
-                                scrollable_frame,
-                                text=exe_name,
-                                command=lambda p=exe_path: self.run_executable(p),
-                                width=20
-                            ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
-                        row += 1
                 
                 # Nút test script đặc biệt (không tương ứng với file C)
                 if module_dir == "file":
