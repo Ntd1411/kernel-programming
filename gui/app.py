@@ -160,9 +160,124 @@ class KernelLinuxGUI:
             },
             "shell-scripting/package-management/dependency_checker.sh": {
                 "needs_sudo": False,
-                "params": [
-                    {"name": "package_name", "prompt": "Package name to check", "example": "vim", "required": True}
-                ]
+                "choice_mode": True,
+                "choice_config": {
+                    "prompt": "Choose dependency operation:",
+                    "choices": [
+                        {
+                            "label": "Check Package Dependencies",
+                            "value": "check",
+                            "params": [
+                                {"name": "package", "prompt": "Package name", "example": "vim", "required": True}
+                            ]
+                        },
+                        {
+                            "label": "Check Broken Dependencies",
+                            "value": "broken",
+                            "params": []
+                        },
+                        {
+                            "label": "Fix Broken Dependencies",
+                            "value": "fix",
+                            "params": []
+                        },
+                        {
+                            "label": "List Orphaned Packages",
+                            "value": "orphans",
+                            "params": []
+                        },
+                        {
+                            "label": "Remove Orphaned Packages",
+                            "value": "clean",
+                            "params": []
+                        },
+                        {
+                            "label": "Show Package Info",
+                            "value": "info",
+                            "params": [
+                                {"name": "package", "prompt": "Package name", "example": "vim", "required": True}
+                            ]
+                        }
+                    ]
+                }
+            },
+            "shell-scripting/package-management/repo_manager.sh": {
+                "needs_sudo": True,
+                "choice_mode": True,
+                "choice_config": {
+                    "prompt": "Choose repository operation:",
+                    "choices": [
+                        {
+                            "label": "List Repositories",
+                            "value": "list",
+                            "params": []
+                        },
+                        {
+                            "label": "Add Repository",
+                            "value": "add",
+                            "params": [
+                                {"name": "repo_url", "prompt": "Repository URL or PPA", "example": "ppa:user/repo or http://...", "required": True},
+                                {"name": "repo_name", "prompt": "Repository name (optional)", "example": "custom-repo", "required": False}
+                            ]
+                        },
+                        {
+                            "label": "Remove Repository",
+                            "value": "remove",
+                            "params": [
+                                {"name": "repo_name", "prompt": "Repository name to remove", "example": "custom-repo", "required": True}
+                            ]
+                        }
+                    ]
+                }
+            },
+            "shell-scripting/task-scheduler/scheduled_tasks.sh": {
+                "needs_sudo": True,
+                "choice_mode": True,
+                "choice_config": {
+                    "prompt": "Choose scheduled task:",
+                    "choices": [
+                        {
+                            "label": "Daily Backup",
+                            "value": "daily_backup",
+                            "params": []
+                        },
+                        {
+                            "label": "Cleanup Temp Files",
+                            "value": "cleanup_temp",
+                            "params": []
+                        },
+                        {
+                            "label": "Cleanup Log Files",
+                            "value": "cleanup_logs",
+                            "params": []
+                        },
+                        {
+                            "label": "Check Disk Space",
+                            "value": "check_disk",
+                            "params": []
+                        },
+                        {
+                            "label": "System Update",
+                            "value": "system_update",
+                            "params": []
+                        },
+                        {
+                            "label": "Check Services Status",
+                            "value": "check_services",
+                            "params": []
+                        },
+                        {
+                            "label": "Rotate Log Files",
+                            "value": "rotate_logs",
+                            "params": []
+                        },
+                        {
+                            "label": "Run All Tasks",
+                            "value": "all",
+                            "params": []
+                        }
+                    ]
+                }
             },
             "shell-scripting/time-management/stopwatch.sh": {
                 "needs_sudo": False,
@@ -565,8 +680,15 @@ class KernelLinuxGUI:
                             entry.insert(0, placeholder)
                             entry.config(foreground='gray')
                     
+                    def on_key_press(e, entry=entry, placeholder=placeholder):
+                        # Clear placeholder on first keystroke
+                        if entry.cget('foreground') == 'gray':
+                            entry.delete(0, tk.END)
+                            entry.config(foreground='black')
+                    
                     entry.bind('<FocusIn>', on_focus_in)
                     entry.bind('<FocusOut>', on_focus_out)
+                    entry.bind('<KeyPress>', on_key_press)
                 
                 entries.append((param, entry))
             
@@ -850,38 +972,6 @@ class KernelLinuxGUI:
                             width=20
                         ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
                         row += 1
-        
-        # Quick actions
-        ttk.Separator(scrollable_frame, orient=tk.HORIZONTAL).grid(
-            row=row, column=0, sticky=(tk.W, tk.E), pady=10, padx=5
-        )
-        row += 1
-        
-        ttk.Label(
-            scrollable_frame,
-            text="Quick Actions",
-            font=("Arial", 10, "bold")
-        ).grid(row=row, column=0, sticky=tk.W, pady=(0, 5), padx=5)
-        row += 1
-        
-        ttk.Button(
-            scrollable_frame,
-            text="Demo Tổng Hợp",
-            command=lambda: self.run_shell_script(
-                self.project_root / "shell-scripting" / "demo.sh"
-            ),
-            width=20
-        ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
-        row += 1
-        
-        ttk.Button(
-            scrollable_frame,
-            text="Quick Start",
-            command=lambda: self.run_shell_script(
-                self.project_root / "shell-scripting" / "QUICKSTART.sh"
-            ),
-            width=20
-        ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
     
     def setup_system_tab(self):
         """Thiết lập tab System Programming"""
@@ -1033,34 +1123,6 @@ class KernelLinuxGUI:
                             width=20
                         ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
                         row += 1
-        
-        # Quick actions
-        ttk.Separator(scrollable_frame, orient=tk.HORIZONTAL).grid(
-            row=row, column=0, sticky=(tk.W, tk.E), pady=10, padx=5
-        )
-        row += 1
-        
-        ttk.Label(
-            scrollable_frame,
-            text="Quick Actions",
-            font=("Arial", 10, "bold")
-        ).grid(row=row, column=0, sticky=tk.W, pady=(0, 5), padx=5)
-        row += 1
-        
-        ttk.Button(
-            scrollable_frame,
-            text="Compile Tất Cả",
-            command=lambda: self.compile_all_system(),
-            width=20
-        ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
-        row += 1
-        
-        ttk.Button(
-            scrollable_frame,
-            text="Clean Tất Cả",
-            command=lambda: self.clean_all_system(),
-            width=20
-        ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
     
     def setup_smp_tab(self):
         """Thiết lập tab SMP Programming"""
@@ -1139,44 +1201,6 @@ class KernelLinuxGUI:
                         ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
                         row += 1
                         break
-        
-        # Quick actions
-        ttk.Separator(scrollable_frame, orient=tk.HORIZONTAL).grid(
-            row=row, column=0, sticky=(tk.W, tk.E), pady=10, padx=5
-        )
-        row += 1
-        
-        ttk.Label(
-            scrollable_frame,
-            text="Quick Actions",
-            font=("Arial", 10, "bold")
-        ).grid(row=row, column=0, sticky=tk.W, pady=(0, 5), padx=5)
-        row += 1
-        
-        ttk.Button(
-            scrollable_frame,
-            text="Demo Tổng Hợp",
-            command=lambda: self.run_shell_script(
-                self.project_root / "smp-programming" / "demo.sh"
-            ),
-            width=20
-        ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
-        row += 1
-        
-        ttk.Button(
-            scrollable_frame,
-            text="Compile Tất Cả",
-            command=lambda: self.compile_all_smp(),
-            width=20
-        ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
-        row += 1
-        
-        ttk.Button(
-            scrollable_frame,
-            text="Clean Tất Cả",
-            command=lambda: self.clean_all_smp(),
-            width=20
-        ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
     
     def run_shell_script(self, script_path):
         """Chạy shell script"""
