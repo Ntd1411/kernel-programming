@@ -1165,7 +1165,7 @@ class KernelLinuxGUI:
             ("Process Management", "process", False, False),
             ("File I/O Operations", "file", False, True),
             ("Socket Programming", "socket", False, False),
-            ("Network Programming", "network", True, True)
+            ("Network Programming", "network", True, False)
         ]
         
         # Danh sách các file cần sudo trong từng module
@@ -1273,8 +1273,34 @@ class KernelLinuxGUI:
                         ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
                         row += 1
                 
-                # Test scripts không auto (socket)
-                if not has_auto_test:
+                # Network module - special handling
+                if module_dir == "network":
+                    # Add network_manager executable button
+                    network_manager_exe = module_path / "network_manager"
+                    if network_manager_exe.exists():
+                        ttk.Button(
+                            scrollable_frame,
+                            text="network_manager (sudo)",
+                            command=lambda p=network_manager_exe: self.run_executable_sudo(p),
+                            width=20
+                        ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
+                        row += 1
+                    
+                    # Add test scripts with sudo
+                    test_scripts = sorted(module_path.glob("test_*.sh"))
+                    for test_script in test_scripts:
+                        # Create cleaner button names
+                        button_text = test_script.stem.replace("test_", "").replace("_", " ").title()
+                        ttk.Button(
+                            scrollable_frame,
+                            text=f"{button_text} (sudo)",
+                            command=lambda p=test_script: self.run_shell_script_sudo(p),
+                            width=20
+                        ).grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
+                        row += 1
+                
+                # Test scripts không auto (socket và các module khác, trừ network đã xử lý riêng)
+                if not has_auto_test and module_dir != "network":
                     test_scripts = sorted(module_path.glob("test_*.sh"))
                     for test_script in test_scripts:
                         ttk.Button(
