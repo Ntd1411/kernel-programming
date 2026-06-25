@@ -8,6 +8,10 @@ set -e
 
 TIMEOUT=5
 TEST_PORT_BASE=9100
+LOG_DIR="./test_logs"
+
+# Tạo thư mục logs nếu chưa có
+mkdir -p "$LOG_DIR"
 
 echo "=========================================="
 echo "Socket Programming Automated Tests"
@@ -26,21 +30,21 @@ echo "[2] Testing TCP Server/Client..."
 TEST_PORT=$((TEST_PORT_BASE + 1))
 
 # Khởi động server ở background
-./tcp_server $TEST_PORT > /tmp/tcp_server.log 2>&1 &
+./tcp_server $TEST_PORT > $LOG_DIR/tcp_server.log 2>&1 &
 SERVER_PID=$!
 sleep 1
 
 # Kiểm tra server có chạy không
 if ! kill -0 $SERVER_PID 2>/dev/null; then
     echo "  [FAILED] TCP Server không khởi động được"
-    cat /tmp/tcp_server.log
+    cat $LOG_DIR/tcp_server.log
 else
     echo "  [OK] TCP Server đã khởi động (PID: $SERVER_PID, Port: $TEST_PORT)"
     
     # Test với echo command
-    echo "test message" | timeout $TIMEOUT ./tcp_client localhost $TEST_PORT > /tmp/tcp_client.log 2>&1
+    echo "test message" | timeout $TIMEOUT ./tcp_client localhost $TEST_PORT > $LOG_DIR/tcp_client.log 2>&1
     
-    if grep -q "test message" /tmp/tcp_client.log; then
+    if grep -q "test message" $LOG_DIR/tcp_client.log; then
         echo "  [OK] TCP Client gửi/nhận thành công"
     else
         echo "  [FAILED] TCP Client không nhận được echo"
@@ -58,20 +62,20 @@ echo "[3] Testing UDP Server/Client..."
 TEST_PORT=$((TEST_PORT_BASE + 2))
 
 # Khởi động UDP server
-./udp_server $TEST_PORT > /tmp/udp_server.log 2>&1 &
+./udp_server $TEST_PORT > $LOG_DIR/udp_server.log 2>&1 &
 SERVER_PID=$!
 sleep 1
 
 if ! kill -0 $SERVER_PID 2>/dev/null; then
     echo "  [FAILED] UDP Server không khởi động được"
-    cat /tmp/udp_server.log
+    cat $LOG_DIR/udp_server.log
 else
     echo "  [OK] UDP Server đã khởi động (PID: $SERVER_PID, Port: $TEST_PORT)"
     
     # Test với echo command
-    echo "udp test" | timeout $TIMEOUT ./udp_client localhost $TEST_PORT > /tmp/udp_client.log 2>&1
+    echo "udp test" | timeout $TIMEOUT ./udp_client localhost $TEST_PORT > $LOG_DIR/udp_client.log 2>&1
     
-    if grep -q "udp test" /tmp/udp_client.log; then
+    if grep -q "udp test" $LOG_DIR/udp_client.log; then
         echo "  [OK] UDP Client gửi/nhận thành công"
     else
         echo "  [FAILED] UDP Client không nhận được response"
@@ -89,19 +93,19 @@ echo "[4] Testing Multi-threaded Echo Server..."
 TEST_PORT=$((TEST_PORT_BASE + 3))
 
 # Khởi động echo server
-./echo_server $TEST_PORT > /tmp/echo_server.log 2>&1 &
+./echo_server $TEST_PORT > $LOG_DIR/echo_server.log 2>&1 &
 SERVER_PID=$!
 sleep 1
 
 if ! kill -0 $SERVER_PID 2>/dev/null; then
     echo "  [FAILED] Echo Server không khởi động được"
-    cat /tmp/echo_server.log
+    cat $LOG_DIR/echo_server.log
 else
     echo "  [OK] Echo Server đã khởi động (PID: $SERVER_PID, Port: $TEST_PORT)"
     
     # Test với 3 clients đồng thời
     for i in 1 2 3; do
-        (echo "client $i message" | timeout $TIMEOUT ./echo_client localhost $TEST_PORT > /tmp/echo_client_$i.log 2>&1) &
+        (echo "client $i message" | timeout $TIMEOUT ./echo_client localhost $TEST_PORT > $LOG_DIR/echo_client_$i.log 2>&1) &
         CLIENT_PIDS[$i]=$!
     done
     
@@ -111,7 +115,7 @@ else
     # Kiểm tra kết quả
     SUCCESS=0
     for i in 1 2 3; do
-        if grep -q "client $i message" /tmp/echo_client_$i.log 2>/dev/null; then
+        if grep -q "client $i message" $LOG_DIR/echo_client_$i.log 2>/dev/null; then
             ((SUCCESS++))
         fi
     done
@@ -135,14 +139,14 @@ echo ""
 echo "[5] Testing SO_REUSEADDR..."
 TEST_PORT=$((TEST_PORT_BASE + 4))
 
-./tcp_server $TEST_PORT > /tmp/test_reuse1.log 2>&1 &
+./tcp_server $TEST_PORT > $LOG_DIR/test_reuse1.log 2>&1 &
 PID1=$!
 sleep 1
 kill $PID1 2>/dev/null || true
 wait $PID1 2>/dev/null || true
 
 # Ngay lập tức khởi động lại
-./tcp_server $TEST_PORT > /tmp/test_reuse2.log 2>&1 &
+./tcp_server $TEST_PORT > $LOG_DIR/test_reuse2.log 2>&1 &
 PID2=$!
 sleep 1
 
@@ -157,7 +161,7 @@ echo ""
 
 # Cleanup
 echo "[6] Cleaning up..."
-rm -f /tmp/tcp_*.log /tmp/udp_*.log /tmp/echo_*.log /tmp/test_*.log
+rm -f $LOG_DIR/*.log
 echo "  [OK] Đã xóa log files"
 echo ""
 
