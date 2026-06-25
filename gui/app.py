@@ -364,6 +364,85 @@ class KernelLinuxGUI:
                         }
                     ]
                 }
+            },
+            "shell-scripting/time-management/time_tracker.sh": {
+                "needs_sudo": False,
+                "choice_mode": True,
+                "choice_config": {
+                    "prompt": "Choose time operation:",
+                    "choices": [
+                        {
+                            "label": "Show Current Time",
+                            "value": "now",
+                            "params": []
+                        },
+                        {
+                            "label": "Show System Uptime",
+                            "value": "uptime",
+                            "params": []
+                        },
+                        {
+                            "label": "Show World Time Zones",
+                            "value": "zones",
+                            "params": []
+                        },
+                        {
+                            "label": "Convert Time Zones",
+                            "value": "convert",
+                            "params": [
+                                {"name": "from_zone", "prompt": "From time zone", "example": "America/New_York", "required": True},
+                                {"name": "to_zone", "prompt": "To time zone", "example": "Asia/Tokyo", "required": True},
+                                {"name": "time", "prompt": "Time to convert (optional, default: now)", "example": "2026-06-25 14:30:00", "required": False}
+                            ]
+                        },
+                        {
+                            "label": "Calculate Duration",
+                            "value": "duration",
+                            "params": [
+                                {"name": "start_time", "prompt": "Start time", "example": "2026-01-01 00:00:00", "required": True},
+                                {"name": "end_time", "prompt": "End time (optional, default: now)", "example": "2026-12-31 23:59:59", "required": False}
+                            ]
+                        },
+                        {
+                            "label": "Format Timestamp",
+                            "value": "format",
+                            "params": [
+                                {"name": "timestamp", "prompt": "Unix timestamp", "example": "1704067200", "required": True},
+                                {"name": "format_string", "prompt": "Format string (optional)", "example": "%Y-%m-%d %H:%M:%S", "required": False}
+                            ]
+                        },
+                        {
+                            "label": "Show Calendar",
+                            "value": "calendar",
+                            "params": [
+                                {"name": "month", "prompt": "Month (optional, 1-12)", "example": "6", "required": False},
+                                {"name": "year", "prompt": "Year (optional)", "example": "2026", "required": False}
+                            ]
+                        },
+                        {
+                            "label": "Add Time to Timestamp",
+                            "value": "add",
+                            "params": [
+                                {"name": "time", "prompt": "Base time (or 'now')", "example": "now", "required": True},
+                                {"name": "amount", "prompt": "Amount to add", "example": "5", "required": True},
+                                {"name": "unit", "prompt": "Time unit", "example": "hours", "required": True}
+                            ]
+                        },
+                        {
+                            "label": "Compare Timestamps",
+                            "value": "compare",
+                            "params": [
+                                {"name": "time1", "prompt": "First timestamp", "example": "2026-01-01", "required": True},
+                                {"name": "time2", "prompt": "Second timestamp", "example": "2026-12-31", "required": True}
+                            ]
+                        },
+                        {
+                            "label": "Show Help",
+                            "value": "help",
+                            "params": []
+                        }
+                    ]
+                }
             }
         }
     
