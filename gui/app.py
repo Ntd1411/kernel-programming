@@ -58,6 +58,7 @@ class KernelLinuxGUI:
         
         # Define script parameters
         self.script_params = self.define_script_parameters()
+        self.executable_params = self.define_executable_parameters()
         
         # Thiết lập giao diện
         self.setup_ui()
@@ -440,6 +441,42 @@ class KernelLinuxGUI:
                             "label": "Show Help",
                             "value": "help",
                             "params": []
+                        }
+                    ]
+                }
+            }
+        }
+    
+    def define_executable_parameters(self):
+        """Định nghĩa parameters cho các executables C"""
+        return {
+            "system/file/file_locking": {
+                "needs_sudo": False,
+                "choice_mode": True,
+                "choice_config": {
+                    "prompt": "Choose file locking mode:",
+                    "param_order": "params_first",
+                    "choices": [
+                        {
+                            "label": "Read Lock (shared - multiple readers allowed)",
+                            "value": "read",
+                            "params": [
+                                {"name": "file", "prompt": "File path to lock", "example": "test.txt", "required": True}
+                            ]
+                        },
+                        {
+                            "label": "Write Lock (exclusive - blocks all other access)",
+                            "value": "write",
+                            "params": [
+                                {"name": "file", "prompt": "File path to lock", "example": "test.txt", "required": True}
+                            ]
+                        },
+                        {
+                            "label": "Partial Lock (range-based locking)",
+                            "value": "partial",
+                            "params": [
+                                {"name": "file", "prompt": "File path to lock", "example": "test.txt", "required": True}
+                            ]
                         }
                     ]
                 }
@@ -1405,17 +1442,66 @@ class KernelLinuxGUI:
             self.log_terminal(f"Lỗi: Không tìm thấy executable {exe_path}\n")
             return
         
+        # Get relative path for lookup
+        rel_path = str(exe_path.relative_to(self.project_root))
+        
+        # Build command
+        command_args = [str(exe_path)]
+        needs_sudo = False
+        
+        # Check if executable has parameter configuration
+        if rel_path in self.executable_params:
+            config = self.executable_params[rel_path]
+            needs_sudo = config.get("needs_sudo", False)
+            
+            # Check if it's a choice-mode executable
+            if config.get("choice_mode"):
+                choice_config = config.get("choice_config", {})
+                result = self.collect_script_choice(exe_path, choice_config)
+                if result is None:  # User cancelled
+                    return
+                
+                flag = result.get("flag", "")
+                params = result.get("params", [])
+                
+                # Build command based on param_order
+                param_order = choice_config.get("param_order", "flag_first")
+                command_args = [str(exe_path)]
+                
+                if param_order == "params_first":
+                    command_args.extend(params)
+                    if flag:
+                        command_args.append(flag)
+                else:  # flag_first (default)
+                    if flag:
+                        command_args.append(flag)
+                    command_args.extend(params)
+        
+        # Add sudo if needed
+        if needs_sudo:
+            password = self.collect_sudo_password()
+            if password is None:
+                return
+            command_args = ["sudo", "-S"] + command_args
+        
         self.log_terminal(f"\n{'='*60}\n")
         self.log_terminal(f"Đang chạy: {exe_path.name}\n")
         self.log_terminal(f"Đường dẫn: {exe_path}\n")
         self.log_terminal(f"{'='*60}\n\n")
         
-        # Chạy trong thread riêng
-        thread = threading.Thread(
-            target=self._run_command,
-            args=([str(exe_path)], exe_path.parent),
-            daemon=True
-        )
+        # Run in separate thread
+        if needs_sudo:
+            thread = threading.Thread(
+                target=self._run_command_with_password,
+                args=(command_args, exe_path.parent, password),
+                daemon=True
+            )
+        else:
+            thread = threading.Thread(
+                target=self._run_command,
+                args=(command_args, exe_path.parent),
+                daemon=True
+            )
         thread.start()
     
     def run_executable_sudo(self, exe_path):
